@@ -50,6 +50,37 @@ describe("Timekeeper", () => {
     });
   });
 
+  describe("stopwatch elapsed is in seconds", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("reports roughly 5 seconds after 5000ms of running", () => {
+      vi.useFakeTimers();
+      const t = new Timekeeper("stopwatch");
+      t.start();
+      vi.advanceTimersByTime(5000);
+
+      expect(t.getElapsedSeconds()).toBeGreaterThanOrEqual(4);
+      expect(t.getElapsedSeconds()).toBeLessThanOrEqual(6);
+    });
+
+    it("reports seconds (not milliseconds) after pause + resume", () => {
+      vi.useFakeTimers();
+      const t = new Timekeeper("stopwatch");
+      t.start();
+      vi.advanceTimersByTime(2000);
+      t.pause();
+      vi.advanceTimersByTime(10000); // paused: must not accumulate
+      t.resume();
+      vi.advanceTimersByTime(3000);
+
+      const elapsed = t.getElapsedSeconds();
+      expect(elapsed).toBeGreaterThanOrEqual(4);
+      expect(elapsed).toBeLessThanOrEqual(6);
+    });
+  });
+
   it("accumulates elapsed seconds for a stopwatch session", () => {
     const t = new Timekeeper("stopwatch");
     t.start();

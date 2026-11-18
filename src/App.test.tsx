@@ -4,13 +4,15 @@ import App from "./App";
 
 const invoke = vi.fn();
 const startDragging = vi.fn().mockResolvedValue(undefined);
+const minimize = vi.fn().mockResolvedValue(undefined);
+const close = vi.fn().mockResolvedValue(undefined);
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: (cmd: string, args?: unknown) => invoke(cmd, args),
 }));
 
 vi.mock("@tauri-apps/api/window", () => ({
-  getCurrentWindow: () => ({ startDragging }),
+  getCurrentWindow: () => ({ startDragging, minimize, close }),
 }));
 
 describe("App (integration)", () => {
@@ -19,6 +21,8 @@ describe("App (integration)", () => {
     localStorage.clear();
     invoke.mockReset();
     startDragging.mockClear();
+    minimize.mockClear();
+    close.mockClear();
     invoke.mockImplementation((cmd: string) => {
       if (cmd === "notion_query_incomplete") return Promise.resolve({ results: [] });
       if (cmd === "notion_log_batch") return Promise.resolve([]);
@@ -62,6 +66,18 @@ describe("App (integration)", () => {
     fireEvent.click(row!.querySelector("button")!);
 
     expect(row!.getAttribute("data-checked")).toBe("true");
+  });
+
+  it("closes the window when the close key is pressed", () => {
+    render(<App />);
+    fireEvent.click(screen.getByTestId("key-close"));
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it("minimizes the window when the minimize key is pressed", () => {
+    render(<App />);
+    fireEvent.click(screen.getByTestId("key-minimize"));
+    expect(minimize).toHaveBeenCalledTimes(1);
   });
 
   it("calls the Notion batch sync on LOG with the checked tasks", async () => {

@@ -14,6 +14,8 @@ export interface UseTaskListResult {
   removeTask: (taskId: string) => void;
   /** Merge tasks fetched from Notion; local unsynced tasks are kept. */
   mergeFetched: (fetched: Task[]) => void;
+  /** Append a single typed task (quick-add) without re-parsing Markdown. */
+  addSingleTask: (title: string) => void;
 }
 
 export function useTaskList(initialMarkdown = ""): UseTaskListResult {
@@ -43,5 +45,20 @@ export function useTaskList(initialMarkdown = ""): UseTaskListResult {
     setTasks((prev) => [...prev.filter((task) => task.notionPageId === null), ...fetched]);
   }, []);
 
-  return { tasks, addTaskList, toggleTask, assignAccumulatedMinutes, removeTask, mergeFetched };
+  const addSingleTask = useCallback((title: string) => {
+    const trimmed = title.trim();
+    if (!trimmed) return;
+    setTasks((prev) => [
+      ...prev,
+      {
+        localId: crypto.randomUUID(),
+        notionPageId: null,
+        title: trimmed,
+        isChecked: false,
+        accumulatedMinutes: 0,
+      },
+    ]);
+  }, []);
+
+  return { tasks, addTaskList, toggleTask, assignAccumulatedMinutes, removeTask, mergeFetched, addSingleTask };
 }

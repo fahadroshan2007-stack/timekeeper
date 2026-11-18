@@ -1,9 +1,14 @@
+import type { ReactNode } from "react";
 import type { TimekeeperMode, TimekeeperStatus } from "../lib/timekeeper";
 
 interface ChassisProps {
   mode: TimekeeperMode;
   status: TimekeeperStatus;
   displaySeconds: number;
+  elapsedSeconds: number;
+  timerPreset: number;
+  activeLabel: string | null;
+  sessionPrompt?: ReactNode;
   onModeChange: (mode: TimekeeperMode) => void;
   onStart: () => void;
   onPause: () => void;
@@ -13,6 +18,9 @@ interface ChassisProps {
   logging: boolean;
   onLog: () => void;
   onSettings: () => void;
+  onMinimize: () => void;
+  onClose: () => void;
+  onTimerPreset: (minutes: number) => void;
 }
 
 function formatDisplay(seconds: number): string {
@@ -26,13 +34,14 @@ function formatDisplay(seconds: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-const key =
-  "h-11 rounded-xl border border-[#a89a76] bg-[#d6c7a1] font-mono text-[11px] font-bold uppercase tracking-wider text-[#3a2f1d] shadow-[0_4px_0_#8a7d55,0_6px_10px_rgba(0,0,0,0.35)] transition-transform active:translate-y-[3px] active:shadow-[0_1px_0_#8a7d55] hover:bg-[#e3d5b0] disabled:opacity-50";
-
 export default function Chassis({
   mode,
   status,
   displaySeconds,
+  elapsedSeconds,
+  timerPreset,
+  activeLabel,
+  sessionPrompt,
   onModeChange,
   onStart,
   onPause,
@@ -42,107 +51,162 @@ export default function Chassis({
   logging,
   onLog,
   onSettings,
+  onMinimize,
+  onClose,
+  onTimerPreset,
 }: ChassisProps) {
+  const isStopwatch = mode === "stopwatch";
+  const startPauseLabel = status === "running" ? "PAUSE" : status === "paused" ? "RESUME" : "START";
+  const stopResetLabel = isStopwatch ? (elapsedSeconds > 0 ? "STOP" : "RESET") : "RESET";
+
+  const modeLabel = isStopwatch
+    ? status === "running"
+      ? "STOPWATCH // LIVE"
+      : "STOPWATCH // STANDBY"
+    : status === "running"
+      ? "TIMER // RUNNING"
+      : status === "paused"
+        ? "TIMER // PAUSED"
+        : "TIMER // READY";
+
+  const handleStartPause = () => {
+    if (status === "running") onPause();
+    else if (status === "paused") onResume();
+    else onStart();
+  };
+
+  const handleStopReset = () => {
+    if (isStopwatch && elapsedSeconds > 0) {
+      onStop();
+    } else {
+      onReset();
+    }
+  };
+
   return (
-    <section
-      data-testid="chassis"
-      className="relative min-h-0 flex-1 rounded-t-2xl bg-gradient-to-b from-[#2a2f3f] via-[#1e2433] to-[#121622] p-3 shadow-2xl"
-    >
-      {/* small logo plate */}
-      <div className="mb-2 flex items-center justify-between">
-        <span className="font-mono text-[9px] font-bold uppercase tracking-[0.35em] text-[#c9a959]">
-          TimeKeeper
-        </span>
-        <button
-          type="button"
-          data-testid="key-settings"
-          onClick={onSettings}
-          title="Settings (Notion API)"
-          className="rounded-full border border-[#3a415a] bg-[#171b28] px-2.5 py-1 font-mono text-[11px] text-[#c9d1e0] shadow-inner hover:text-white"
-        >
-          …
-        </button>
-      </div>
-
-      {/* LCD */}
-      <div className="mb-2 rounded-lg border-2 border-[#0a0d17] bg-black p-2 shadow-inner">
-        <div className="flex items-center justify-between">
-          <span className="font-mono text-[8px] uppercase tracking-[0.3em] text-[#3f6a4f]">
-            {mode === "timer" ? "Timer" : "Stopwatch"} · {status}
+    <section data-testid="chassis" className="typewriter-chassis">
+      {/* Header: brand plate + focus indicator + window controls */}
+      <div className="chassis-header">
+        <span className="brand-plate">TIMEKEEPER // MK-I</span>
+        <div className="chassis-header-right">
+          <span
+            data-testid="active-focus"
+            className={`active-focus ${activeLabel ? "is-set" : ""}`}
+            title={activeLabel ?? "No focus selected"}
+          >
+            {activeLabel ? `FOCUS: ${activeLabel.toUpperCase()}` : "NO FOCUS SET"}
           </span>
-          <span className="font-mono text-[8px] uppercase tracking-[0.3em] text-[#3f6a4f]">
-            min
-          </span>
-        </div>
-        <div
-          data-testid="lcd-display"
-          className="text-right font-mono text-3xl tracking-[0.2em] text-[#4ade80] [text-shadow:0_0_6px_rgba(74,222,128,0.6)]"
-        >
-          {formatDisplay(displaySeconds)}
+          <button
+            type="button"
+            data-testid="key-minimize"
+            onClick={onMinimize}
+            title="Minimize"
+            className="icon-key"
+          >
+            –
+          </button>
+          <button
+            type="button"
+            data-testid="key-close"
+            onClick={onClose}
+            title="Close"
+            className="icon-key close"
+          >
+            ×
+          </button>
         </div>
       </div>
 
-      {/* mode toggle keys */}
-      <div className="mb-2 grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          data-testid="mode-timer"
-          onClick={() => onModeChange("timer")}
-          aria-pressed={mode === "timer"}
-          className={`${key} ${
-            mode === "timer" ? "bg-[#c9a959]" : "opacity-70"
-          }`}
-        >
-          Timer
-        </button>
-        <button
-          type="button"
-          data-testid="mode-stopwatch"
-          onClick={() => onModeChange("stopwatch")}
-          aria-pressed={mode === "stopwatch"}
-          className={`${key} ${
-            mode === "stopwatch" ? "bg-[#c9a959]" : "opacity-70"
-          }`}
-        >
-          Stopwatch
-        </button>
+      {/* Session-end label-maker ribbon (only when open) */}
+      {sessionPrompt}
+
+      {/* LCD deck */}
+      <div className="lcd-deck">
+        <div className="lcd-row">
+          <div className="lcd-screen">
+            <div className="lcd-meta">
+              <span className={`lcd-mode-label ${isStopwatch ? "is-stopwatch" : ""}`}>
+                {modeLabel}
+              </span>
+              <span className="lcd-badge">
+                {isStopwatch ? "COUNT UP" : `${timerPreset}M TARGET`}
+              </span>
+            </div>
+            <div
+              data-testid="lcd-display"
+              className={`lcd-digits ${isStopwatch ? "is-stopwatch" : ""}`}
+            >
+              {formatDisplay(displaySeconds)}
+            </div>
+          </div>
+
+          <div className="lcd-side">
+            <div className="mode-rocker" title="Countdown timer vs stopwatch">
+              <button
+                type="button"
+                data-testid="mode-timer"
+                aria-pressed={!isStopwatch}
+                className={!isStopwatch ? "active" : ""}
+                onClick={() => onModeChange("timer")}
+              >
+                TMR
+              </button>
+              <button
+                type="button"
+                data-testid="mode-stopwatch"
+                aria-pressed={isStopwatch}
+                className={isStopwatch ? "active" : ""}
+                onClick={() => onModeChange("stopwatch")}
+              >
+                SW
+              </button>
+            </div>
+
+            {!isStopwatch && (
+              <div className="preset-row">
+                {[15, 25, 45].map((mins) => (
+                  <button
+                    key={mins}
+                    type="button"
+                    data-testid={`preset-${mins}`}
+                    onClick={() => onTimerPreset(mins)}
+                    className={`preset-btn ${timerPreset === mins ? "active" : ""}`}
+                  >
+                    {mins}m
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* transport keys */}
-      <div className="grid grid-cols-4 gap-2">
-        {status === "idle" ? (
-          <button type="button" data-testid="tk-start" onClick={onStart} className={key}>
-            Start
-          </button>
-        ) : status === "running" ? (
-          <button type="button" data-testid="tk-pause" onClick={onPause} className={key}>
-            Pause
-          </button>
-        ) : (
-          <button type="button" data-testid="tk-resume" onClick={onResume} className={key}>
-            Resume
-          </button>
-        )}
-        <button type="button" data-testid="tk-reset" onClick={onReset} className={key}>
-          Reset
+      {/* Keycaps */}
+      <div className="key-row">
+        <button type="button" data-testid="tk-start" onClick={handleStartPause} className="tw-key tw-key-cream">
+          <span id="key-start-label">{startPauseLabel}</span>
         </button>
-        <button
-          type="button"
-          data-testid="tk-stop"
-          onClick={onStop}
-          disabled={status === "idle"}
-          className={key}
-        >
-          Stop ✓
+        <button type="button" data-testid="tk-stop-reset" onClick={handleStopReset} className="tw-key tw-key-cream">
+          <span>{stopResetLabel}</span>
         </button>
         <button
           type="button"
           data-testid="key-log"
           onClick={onLog}
           disabled={logging}
-          className="h-11 rounded-xl border border-[#7f1d1d] bg-[#b91c1c] font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-white shadow-[0_4px_0_#7f1d1d,0_6px_10px_rgba(0,0,0,0.4)] transition-transform active:translate-y-[3px] active:shadow-[0_1px_0_#7f1d1d] hover:bg-[#dc2626] disabled:opacity-50"
+          title="Batch sync checked tasks to Notion"
+          className="tw-key tw-key-red"
         >
-          {logging ? "…" : "Log"}
+          <span>{logging ? "LOGGING…" : "LOG"}</span>
+        </button>
+        <button
+          type="button"
+          data-testid="key-settings"
+          onClick={onSettings}
+          title="Notion API settings"
+          className="tw-key tw-key-dark"
+        >
+          <span>•••</span>
         </button>
       </div>
     </section>

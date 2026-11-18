@@ -38,7 +38,7 @@ export class Timekeeper {
       this.consumedSeconds = Math.max(0, this.initialSeconds - remainingMs / 1000);
       this.endsAtMs = null;
     } else {
-      this.consumedSeconds += this.startedAtMs ? Date.now() - this.startedAtMs : 0;
+      this.consumedSeconds += this.startedAtMs ? (Date.now() - this.startedAtMs) / 1000 : 0;
       this.startedAtMs = null;
     }
     this.status = "paused";
@@ -64,7 +64,7 @@ export class Timekeeper {
   stop(): number {
     const elapsed =
       this.mode === "stopwatch"
-        ? this.consumedSeconds + (this.startedAtMs ? Date.now() - this.startedAtMs : 0)
+        ? this.consumedSeconds + (this.startedAtMs ? (Date.now() - this.startedAtMs) / 1000 : 0)
         : this.getElapsedSeconds();
     this.reset();
     return elapsed;
@@ -73,7 +73,7 @@ export class Timekeeper {
   getElapsedSeconds(): number {
     if (this.status === "idle") return 0;
     if (this.mode === "stopwatch") {
-      return this.consumedSeconds + (this.startedAtMs ? Date.now() - this.startedAtMs : 0);
+      return this.consumedSeconds + (this.startedAtMs ? (Date.now() - this.startedAtMs) / 1000 : 0);
     }
     if (this.endsAtMs === null) return this.consumedSeconds;
     const remainingMs = Math.max(0, this.endsAtMs - Date.now());

@@ -1,37 +1,9 @@
-@import "tailwindcss";
-@source "../index.html";
-@source "./";
+@import "./typewriter.css";
 
 html,
 body,
 #root {
   height: 100%;
   margin: 0;
-}
-
-@keyframes strikeline {
-  from {
-    transform: scaleX(0);
-    opacity: 0.2;
-  }
-  to {
-    transform: scaleX(1);
-    opacity: 1;
-  }
-}
-
-.strike-anim {
-  position: relative;
-}
-
-.strike-anim::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  height: 2px;
-  background: #a94a4a;
-  transform-origin: left center;
-  animation: strikeline 0.35s ease forwards;
+  overflow: hidden;
 }

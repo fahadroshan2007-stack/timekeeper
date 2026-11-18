@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { Task } from "../lib/tasks";
 
 interface PaperProps {
@@ -8,9 +9,10 @@ interface PaperProps {
   activeTaskId: string | null;
   onToggleTask: (taskId: string) => void;
   onActivateTask: (taskId: string) => void;
-  onEdit: () => void;
   onLoad: () => void;
+  onEdit: () => void;
   onRefresh: () => void;
+  onQuickAdd: (title: string) => void;
 }
 
 export default function Paper({
@@ -21,120 +23,143 @@ export default function Paper({
   activeTaskId,
   onToggleTask,
   onActivateTask,
-  onEdit,
   onLoad,
+  onEdit,
   onRefresh,
+  onQuickAdd,
 }: PaperProps) {
-  const activeCount = tasks.filter((t) => t.isChecked).length;
+  const [quickAdd, setQuickAdd] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+
+  const submitQuickAdd = () => {
+    const title = quickAdd.trim();
+    if (!title) return;
+    onQuickAdd(title);
+    setQuickAdd("");
+  };
+
+  const handleRefreshClick = () => {
+    setRefreshing(true);
+    onRefresh();
+    window.setTimeout(() => setRefreshing(false), 450);
+  };
 
   return (
-    <section
-      data-testid="paper"
-      className="relative min-h-0 flex-[1.4] overflow-hidden rounded-t-2xl bg-[#FDF6E3] px-4 py-3 shadow-2xl"
-    >
-      <div
-        data-testid="paper-content"
-        className="absolute inset-0 overflow-y-auto rounded-t-2xl px-4 py-3"
+    <>
+      <div className="paper-serrated-top" />
+      <section
+        data-testid="paper"
+        className="paper-sheet"
+        onDoubleClick={showInput ? undefined : onEdit}
+        title="Double-click paper to edit raw Markdown"
       >
-        <div className="mb-2 flex items-center justify-between border-b-2 border-[#d8c9a8] pb-1">
-          <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-[#8a7a5c]">
-            To Do
-          </span>
-          <div className="flex items-center gap-1">
+        {/* Paper header */}
+        <div className="paper-header">
+          <div className="paper-title-wrap">
+            <span className="pulse-dot" title="Connected to Notion" />
+            <span className="paper-title">Daily Plan // Notion</span>
+          </div>
+          <div className="paper-actions">
+            {showInput ? (
+              <button type="button" data-testid="key-load" onClick={onLoad} className="paper-btn font-bold">
+                DONE (RENDER)
+              </button>
+            ) : (
+              <button type="button" data-testid="key-edit" onClick={onEdit} className="paper-btn">
+                EDIT .MD
+              </button>
+            )}
             <button
               type="button"
               data-testid="key-refresh"
-              onClick={onRefresh}
-              title="Refresh tasks from Notion"
-              className="rounded border border-[#d8c9a8] bg-[#f5edd8] px-1.5 py-0.5 font-mono text-[10px] text-[#5c4d33] hover:bg-[#efe3c6]"
+              onClick={handleRefreshClick}
+              title="Pull incomplete tasks from Notion"
+              className={`paper-btn ${refreshing ? "spin" : ""}`}
             >
               ↻
             </button>
-            {showInput ? (
-              <button
-                type="button"
-                data-testid="key-load"
-                onClick={onLoad}
-                className="rounded border border-[#d8c9a8] bg-[#f5edd8] px-1.5 py-0.5 font-mono text-[10px] text-[#5c4d33] hover:bg-[#efe3c6]"
-              >
-                LOAD →
-              </button>
-            ) : (
-              <button
-                type="button"
-                data-testid="key-edit"
-                onClick={onEdit}
-                className="rounded border border-[#d8c9a8] bg-[#f5edd8] px-1.5 py-0.5 font-mono text-[10px] text-[#5c4d33] hover:bg-[#efe3c6]"
-              >
-                EDIT ✎
-              </button>
-            )}
           </div>
         </div>
 
+        {/* Interactive checklist / raw markdown editor */}
         {showInput ? (
           <textarea
             data-testid="paper-input"
             value={markdown}
             onChange={(e) => onMarkdownChange(e.target.value)}
-            placeholder="Paste your Markdown task list here…&#10;- [ ] First task&#10;- [ ] Second task"
-            className="h-full min-h-0 w-full resize-none border-none bg-transparent font-mono text-[13px] leading-6 text-[#3a3026] outline-none placeholder:text-[#c2b291]"
+            placeholder={"Paste your Markdown task list here…\n- [ ] Write literature review\n- [ ] Solve 3 LeetCode mediums"}
+            className="paper-textarea"
           />
         ) : (
-          <ul className="flex flex-col gap-1.5">
-            {tasks.length === 0 && (
-              <li className="font-mono text-[12px] italic text-[#b3a482]">
-                Nothing here yet. Click EDIT ✎ to paste a Markdown task list.
+          <ul data-testid="paper-content" className="task-list">
+            {tasks.length === 0 ? (
+              <li className="empty-paper">
+                Paper is clean.
+                <br />
+                Type below or double-click to paste Markdown.
               </li>
+            ) : (
+              tasks.map((task) => (
+                <li
+                  key={task.localId}
+                  data-checked={String(task.isChecked)}
+                  data-active={String(activeTaskId === task.localId)}
+                  className={`task-row ${task.isChecked ? "is-checked" : ""} ${
+                    activeTaskId === task.localId ? "is-active" : ""
+                  }`}
+                >
+                  <button
+                    type="button"
+                    aria-label={task.isChecked ? "Uncheck task" : "Check task"}
+                    onClick={() => onToggleTask(task.localId)}
+                    className="retro-checkbox"
+                  >
+                    {task.isChecked ? "✓" : ""}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onActivateTask(task.localId)}
+                    className="task-text-wrapper font-typewriter"
+                  >
+                    {activeTaskId === task.localId && (
+                      <span className="font-bold" style={{ color: "var(--ribbon-red)", marginRight: 4 }}>
+                        ▸
+                      </span>
+                    )}
+                    <span className="task-text">
+                      {task.title}
+                      <span className="strike-line" />
+                    </span>
+                  </button>
+                  {task.accumulatedMinutes > 0 && (
+                    <span className="time-pill">{task.accumulatedMinutes}m</span>
+                  )}
+                </li>
+              ))
             )}
-            {tasks.map((task) => (
-              <li
-                key={task.localId}
-                data-checked={String(task.isChecked)}
-                data-active={String(activeTaskId === task.localId)}
-                className="group flex items-start gap-2 rounded-md px-1 py-1"
-              >
-                <button
-                  type="button"
-                  aria-label={task.isChecked ? "Uncheck task" : "Check task"}
-                  onClick={() => onToggleTask(task.localId)}
-                  className={`mt-0.5 flex h-4 w-4 flex-none items-center justify-center border-2 text-[10px] transition-colors ${
-                    task.isChecked
-                      ? "border-[#222] bg-[#222] text-[#f5c518]"
-                      : "border-[#8a7a5c] bg-white text-transparent hover:border-[#222]"
-                  }`}
-                >
-                  {task.isChecked ? "✓" : "·"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onActivateTask(task.localId)}
-                  className={`min-w-0 flex-1 text-left font-mono text-[13px] leading-6 transition-colors ${
-                    task.isChecked ? "strike-anim text-[#a99c7c]" : "text-[#3a3026]"
-                  } ${
-                    activeTaskId === task.localId
-                      ? "border-b-2 border-red-500 underline decoration-red-500 underline-offset-4"
-                      : "border-b-2 border-transparent"
-                  }`}
-                >
-                  {task.title}
-                </button>
-                {task.accumulatedMinutes > 0 && (
-                  <span className="mt-0.5 flex-none rounded-full bg-[#f5c518] px-2 py-0.5 font-mono text-[10px] font-bold text-[#222] shadow-sm">
-                    {task.accumulatedMinutes}m
-                  </span>
-                )}
-              </li>
-            ))}
           </ul>
         )}
 
-        {!showInput && activeCount > 0 && (
-          <p className="mt-2 font-mono text-[10px] uppercase tracking-widest text-[#8a7a5c]">
-            {activeCount} checked — press LOG on the chassis to sync
-          </p>
-        )}
-      </div>
-    </section>
+        {/* Quick-add inline input */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            submitQuickAdd();
+          }}
+          className="quick-add"
+        >
+          <span className="quick-add-plus">+</span>
+          <input
+            type="text"
+            data-testid="paper-quickadd"
+            value={quickAdd}
+            onChange={(e) => setQuickAdd(e.target.value)}
+            placeholder="Type task & press Enter…"
+            className="quick-add-input"
+            style={{ userSelect: "text" }}
+          />
+        </form>
+      </section>
+    </>
   );
 }

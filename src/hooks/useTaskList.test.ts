@@ -39,6 +39,29 @@ describe("useTaskList", () => {
     expect(result.current.tasks[0].accumulatedMinutes).toBe(25);
   });
 
+  it("adds a single typed task without a Markdown parse", () => {
+    const { result } = renderHook(() => useTaskList(""));
+
+    act(() => result.current.addSingleTask("Quick note"));
+
+    expect(result.current.tasks).toHaveLength(1);
+    expect(result.current.tasks[0]).toMatchObject({
+      title: "Quick note",
+      isChecked: false,
+      accumulatedMinutes: 0,
+      notionPageId: null,
+    });
+    expect(result.current.tasks[0].localId).not.toBe(result.current.tasks[0].notionPageId);
+  });
+
+  it("ignores empty quick-add titles", () => {
+    const { result } = renderHook(() => useTaskList(""));
+
+    act(() => result.current.addSingleTask("   "));
+
+    expect(result.current.tasks).toHaveLength(0);
+  });
+
   it("merges fetched Notion tasks while preserving local unsynced tasks", () => {
     const { result } = renderHook(() => useTaskList("- [ ] Local task"));
     const fetched = [

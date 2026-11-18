@@ -1,0 +1,988 @@
+/* =========================================
+   Typewriter TimeKeeper — Olivetti design tokens
+   ========================================= */
+:root {
+  --paper-bg: #faf6ee;
+  --paper-line: #eae3d2;
+  --paper-ink: #24201e;
+  --paper-muted: #8c8275;
+  --ribbon-red: #d94e34;
+  --ribbon-red-soft: rgba(217, 78, 52, 0.12);
+
+  --chassis-body: #282423;
+  --chassis-top: #36312f;
+  --chassis-dark: #191615;
+  --roller-rubber: #1e1c1b;
+  --chrome-light: #e2dfd9;
+  --chrome-mid: #9e988e;
+  --chrome-dark: #57524b;
+
+  --lcd-bg: #111613;
+  --lcd-phosphor: #5df29a;
+  --lcd-phosphor-dim: rgba(93, 242, 154, 0.16);
+  --lcd-amber: #f5b041;
+
+  --key-cream: #f3ece0;
+  --key-cream-shadow: #b8ae9e;
+  --key-red: #d94e34;
+  --key-red-shadow: #8e2b19;
+  --key-dark: #3b3634;
+  --key-dark-shadow: #171413;
+
+  --pill-amber-bg: #fce9c0;
+  --pill-amber-text: #8a5a00;
+  --pill-amber-border: #f0d49b;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  background: transparent;
+  user-select: none;
+}
+
+.font-typewriter {
+  font-family: "Courier Prime", "Space Mono", ui-monospace, monospace;
+}
+
+.font-lcd {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* =========================================
+   ROOT LAYOUT
+   ========================================= */
+.typewriter-widget {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: transparent;
+}
+
+/* =========================================
+   1. ROLLING PAPER
+   ========================================= */
+.paper-serrated-top {
+  flex: none;
+  height: 10px;
+  width: 100%;
+  background: linear-gradient(135deg, transparent 50%, var(--paper-bg) 50%),
+    linear-gradient(225deg, transparent 50%, var(--paper-bg) 50%);
+  background-position: top left;
+  background-size: 12px 10px;
+  background-repeat: repeat-x;
+  filter: drop-shadow(0 -1px 1px rgba(0, 0, 0, 0.05));
+  z-index: 10;
+}
+
+.paper-sheet {
+  flex: 1.35;
+  min-height: 0;
+  overflow: hidden;
+  background-color: var(--paper-bg);
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 31px,
+    var(--paper-line) 31px,
+    var(--paper-line) 32px
+  );
+  color: var(--paper-ink);
+  position: relative;
+  z-index: 10;
+  padding: 14px 16px 18px 16px;
+  border-left: 1px solid rgba(0, 0, 0, 0.07);
+  border-right: 1px solid rgba(0, 0, 0, 0.07);
+  box-shadow:
+    inset 0 -14px 18px -10px rgba(28, 22, 18, 0.35),
+    inset 0 2px 4px rgba(255, 255, 255, 0.9);
+  display: flex;
+  flex-direction: column;
+}
+
+.paper-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1.5px dashed #cfc5b4;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+}
+
+.paper-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pulse-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #10b981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.7);
+}
+
+.paper-title {
+  font-family: "Space Mono", monospace;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #3f3830;
+}
+
+.paper-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.paper-btn {
+  font-family: "Courier Prime", monospace;
+  font-size: 10px;
+  padding: 3px 7px;
+  border-radius: 4px;
+  border: 1px solid #cfc5b4;
+  background: rgba(255, 253, 249, 0.6);
+  color: #5a524a;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.paper-btn:hover {
+  background: rgba(234, 227, 210, 0.9);
+}
+
+.spin {
+  display: inline-block;
+  animation: spin360 0.45s ease;
+}
+
+@keyframes spin360 {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.task-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.task-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.task-list::-webkit-scrollbar-thumb {
+  background: #d4cbb9;
+  border-radius: 4px;
+}
+
+.task-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 6px;
+  border-radius: 5px;
+  position: relative;
+  transition:
+    background-color 0.15s ease,
+    opacity 0.25s ease,
+    transform 0.25s ease;
+}
+
+.task-row:hover {
+  background-color: rgba(217, 78, 52, 0.05);
+}
+
+.task-row.is-active {
+  background-color: var(--ribbon-red-soft);
+}
+
+.retro-checkbox {
+  width: 15px;
+  height: 15px;
+  margin-top: 2px;
+  border: 1.5px solid #5a524a;
+  border-radius: 2px;
+  background: #fffdf9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  color: #fffdf9;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
+  transition: all 0.15s ease;
+}
+
+.task-row.is-checked .retro-checkbox {
+  background-color: var(--ribbon-red);
+  border-color: var(--ribbon-red);
+}
+
+.task-text-wrapper {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.35;
+  font-size: 13px;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: inherit;
+}
+
+.task-row.is-active .task-text {
+  text-decoration: underline;
+  text-decoration-color: var(--ribbon-red);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+  font-weight: 700;
+}
+
+.task-text {
+  position: relative;
+  display: inline;
+  transition: color 0.2s ease;
+}
+
+.task-row.is-checked .task-text {
+  color: #93897c;
+}
+
+.strike-line {
+  position: absolute;
+  left: 0;
+  top: 52%;
+  height: 1.8px;
+  width: 0;
+  background-color: var(--ribbon-red);
+  transition: width 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+
+.task-row.is-checked .strike-line {
+  width: 100%;
+}
+
+.time-pill {
+  flex: none;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--pill-amber-bg);
+  color: var(--pill-amber-text);
+  border: 1px solid var(--pill-amber-border);
+  white-space: nowrap;
+  margin-top: 1px;
+}
+
+.empty-paper {
+  padding: 36px 12px;
+  text-align: center;
+  font-family: "Courier Prime", monospace;
+  font-size: 12px;
+  color: #b3a482;
+}
+
+.paper-textarea {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  background: rgba(255, 253, 248, 0.85);
+  border: 1px dashed #b9ae9c;
+  border-radius: 4px;
+  padding: 10px;
+  font-family: "Courier Prime", monospace;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--paper-ink);
+  resize: none;
+  outline: none;
+  user-select: text;
+}
+
+.quick-add {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.quick-add-plus {
+  font-family: "Courier Prime", monospace;
+  font-size: 13px;
+  color: #a89c86;
+}
+
+.quick-add-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: "Courier Prime", monospace;
+  font-size: 12px;
+  color: var(--paper-ink);
+  user-select: text;
+}
+
+.quick-add-input::placeholder {
+  color: #c2b291;
+}
+
+/* =========================================
+   2. PLATEN ROLLER & CARRIAGE BAR
+   ========================================= */
+.roller-assembly {
+  flex: none;
+  position: relative;
+  height: 26px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  margin-top: -4px;
+}
+
+.carriage-knob {
+  width: 16px;
+  height: 24px;
+  border-radius: 3px;
+  background: repeating-linear-gradient(
+    to bottom,
+    var(--chrome-light) 0px,
+    var(--chrome-light) 2px,
+    var(--chrome-dark) 2px,
+    var(--chrome-dark) 4px
+  );
+  border: 1px solid #3c3834;
+  box-shadow: 0 3px 5px rgba(0, 0, 0, 0.4);
+}
+
+.carriage-stem {
+  width: 6px;
+  height: 10px;
+  background: linear-gradient(to bottom, #d6d2c9, #6e685f);
+}
+
+.platen-roller {
+  flex: 1;
+  max-width: 88%;
+  height: 20px;
+  border-radius: 4px;
+  background: linear-gradient(
+    to bottom,
+    #3a3634 0%,
+    #1f1c1b 38%,
+    #12100f 75%,
+    #2b2725 100%
+  );
+  box-shadow:
+    0 4px 8px rgba(0, 0, 0, 0.55),
+    inset 0 1px 1px rgba(255, 255, 255, 0.18);
+  display: flex;
+  align-items: center;
+}
+
+.paper-bail-rod {
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(to bottom, #f4f2ed, #8c867c);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: space-between;
+  padding: 0 38px;
+  align-items: center;
+}
+
+.pinch-wheel {
+  width: 14px;
+  height: 7px;
+  background: #181615;
+  border: 1px solid #6e685f;
+  border-radius: 2px;
+}
+
+/* =========================================
+   3. TYPEWRITER CHASSIS
+   ========================================= */
+.typewriter-chassis {
+  flex: 1;
+  min-height: 0;
+  background: linear-gradient(
+    180deg,
+    var(--chassis-top) 0%,
+    var(--chassis-body) 18%,
+    #1f1c1b 100%
+  );
+  border-radius: 10px 10px 22px 22px;
+  padding: 12px 16px 14px 16px;
+  position: relative;
+  z-index: 15;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  border-bottom: 4px solid var(--chassis-dark);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -6px 12px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+}
+
+.chassis-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.brand-plate {
+  background: linear-gradient(180deg, #1e1b1a, #141211);
+  border: 1px solid #47413d;
+  border-radius: 3px;
+  padding: 2px 8px;
+  font-family: "Space Mono", monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #d6cbb8;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.8);
+  white-space: nowrap;
+}
+
+.chassis-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.active-focus {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #857d73;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.active-focus.is-set {
+  color: var(--lcd-amber);
+}
+
+.icon-key {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 1px solid #47413d;
+  background: #1a1716;
+  color: #a89e90;
+  font-size: 11px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    color 0.12s ease,
+    background 0.12s ease;
+}
+
+.icon-key:hover {
+  color: #faf6ee;
+  background: #24201e;
+}
+
+.icon-key.close:hover {
+  color: #ff8a7a;
+  background: #2b1a18;
+  border-color: #5a2a24;
+}
+
+/* =========================================
+   SESSION-END LABEL-MAKER RIBBON
+   ========================================= */
+.session-ribbon {
+  flex: none;
+  background: var(--paper-bg);
+  border: 1.5px solid var(--ribbon-red);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  color: var(--paper-ink);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+  animation: slideDownRibbon 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideDownRibbon {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.ribbon-headline {
+  font-family: "Courier Prime", monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ribbon-red);
+  margin-bottom: 6px;
+}
+
+.ribbon-select {
+  width: 100%;
+  font-family: "Courier Prime", monospace;
+  font-size: 12px;
+  background: #fffdf9;
+  border: 1px solid #cfc5b4;
+  border-radius: 4px;
+  padding: 5px 6px;
+  outline: none;
+  margin-bottom: 6px;
+}
+
+.ribbon-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.ribbon-btn {
+  font-family: "Space Mono", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 4px;
+  border: 1px solid #cfc5b4;
+  background: transparent;
+  color: #5a524a;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+}
+
+.ribbon-btn:hover {
+  background: rgba(234, 227, 210, 0.8);
+}
+
+.ribbon-btn.primary {
+  background: var(--ribbon-red);
+  border-color: var(--ribbon-red);
+  color: #fffdf9;
+}
+
+.ribbon-btn.primary:hover {
+  background: #c03e26;
+}
+
+/* =========================================
+   4. EMBEDDED RETRO LCD & MODE SWITCH
+   ========================================= */
+.lcd-deck {
+  flex: none;
+  background: #1b1817;
+  border: 1px solid #3e3835;
+  border-radius: 9px;
+  padding: 8px 10px;
+  box-shadow:
+    inset 0 3px 8px rgba(0, 0, 0, 0.75),
+    0 1px 0 rgba(255, 255, 255, 0.08);
+  margin-bottom: 10px;
+}
+
+.lcd-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.lcd-screen {
+  flex: 1;
+  min-width: 0;
+  background: var(--lcd-bg);
+  border: 1.5px solid #2c332f;
+  border-radius: 6px;
+  padding: 7px 10px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 0 14px rgba(0, 0, 0, 0.9);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.lcd-screen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.025) 0px,
+    rgba(255, 255, 255, 0.025) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  pointer-events: none;
+}
+
+.lcd-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.lcd-mode-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: rgba(93, 242, 154, 0.75);
+}
+
+.lcd-mode-label.is-stopwatch {
+  color: rgba(245, 176, 65, 0.8);
+}
+
+.lcd-badge {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #8a8378;
+}
+
+.lcd-digits {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 29px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  color: var(--lcd-phosphor);
+  text-shadow: 0 0 10px rgba(93, 242, 154, 0.45);
+  transition:
+    color 0.25s ease,
+    text-shadow 0.25s ease;
+}
+
+.lcd-digits.is-stopwatch {
+  color: var(--lcd-amber);
+  text-shadow: 0 0 10px rgba(245, 176, 65, 0.45);
+}
+
+.lcd-side {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.mode-rocker {
+  display: inline-flex;
+  background: #12100f;
+  border: 1px solid #443e3b;
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.mode-rocker button {
+  font-family: "Space Mono", monospace;
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #857d73;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.mode-rocker button.active {
+  background: #3a3431;
+  color: #faf6ee;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.preset-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.preset-btn {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 3px 7px;
+  border-radius: 4px;
+  background: #24201e;
+  color: #a89e90;
+  border: 1px solid #3e3835;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.preset-btn:hover {
+  background: #2f2a28;
+  color: #faf6ee;
+}
+
+.preset-btn.active {
+  background: #3a3431;
+  color: var(--lcd-amber);
+  border-color: rgba(245, 176, 65, 0.4);
+}
+
+/* =========================================
+   5. TACTILE MECHANICAL KEYCAPS
+   ========================================= */
+.key-row {
+  flex: none;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 0.72fr;
+  gap: 9px;
+  margin-top: auto;
+}
+
+.tw-key {
+  position: relative;
+  border: none;
+  border-radius: 9px;
+  padding: 11px 4px 10px 4px;
+  font-family: "Space Mono", monospace;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  transition:
+    transform 0.07s ease,
+    box-shadow 0.07s ease;
+  outline: none;
+}
+
+.tw-key-cream {
+  background: linear-gradient(180deg, #faf5ec 0%, var(--key-cream) 100%);
+  color: #262220;
+  border: 1.5px solid #b5aca0;
+  box-shadow:
+    0 4px 0 var(--key-cream-shadow),
+    0 6px 8px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 #ffffff;
+}
+
+.tw-key-cream:active,
+.tw-key-cream.is-pressed {
+  transform: translateY(3px);
+  box-shadow:
+    0 1px 0 var(--key-cream-shadow),
+    0 2px 3px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 #ffffff;
+}
+
+.tw-key-red {
+  background: linear-gradient(180deg, #e85d43 0%, var(--key-red) 100%);
+  color: #fffdf9;
+  border: 1.5px solid #f38a76;
+  box-shadow:
+    0 4px 0 var(--key-red-shadow),
+    0 6px 8px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.tw-key-red:active,
+.tw-key-red.is-pressed {
+  transform: translateY(3px);
+  box-shadow:
+    0 1px 0 var(--key-red-shadow),
+    0 2px 3px rgba(0, 0, 0, 0.45);
+}
+
+.tw-key-dark {
+  background: linear-gradient(180deg, #47413f 0%, var(--key-dark) 100%);
+  color: #e6dfd3;
+  border: 1.5px solid #635b57;
+  box-shadow:
+    0 4px 0 var(--key-dark-shadow),
+    0 6px 8px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+.tw-key-dark:active {
+  transform: translateY(3px);
+  box-shadow:
+    0 1px 0 var(--key-dark-shadow),
+    0 2px 3px rgba(0, 0, 0, 0.45);
+}
+
+.tw-key:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* =========================================
+   STAMP TOAST
+   ========================================= */
+.stamp-toast {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 40;
+  background: var(--paper-bg);
+  color: var(--ribbon-red);
+  border: 2px solid var(--ribbon-red);
+  font-family: "Space Mono", monospace;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 4px;
+  transform: rotate(-3deg);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+  max-width: 72%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  animation: stampIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes stampIn {
+  from {
+    opacity: 0;
+    transform: rotate(-4deg) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(-3deg) scale(1);
+  }
+}
+
+/* =========================================
+   SETTINGS DRAWER (modal re-skin)
+   ========================================= */
+.settings-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(10, 8, 7, 0.55);
+}
+
+.settings-panel {
+  width: 100%;
+  background: #221f1e;
+  border-top: 1.5px solid #47413d;
+  padding: 12px 14px 14px;
+  animation: slideUpPanel 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUpPanel {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.settings-title {
+  font-family: "Space Mono", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--lcd-amber);
+  margin-bottom: 2px;
+}
+
+.settings-note {
+  font-family: "Courier Prime", monospace;
+  font-size: 9.5px;
+  line-height: 1.4;
+  color: #8a8378;
+  margin-bottom: 10px;
+}
+
+.settings-label {
+  display: block;
+  font-family: "Space Mono", monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #a89e90;
+  margin-bottom: 6px;
+}
+
+.settings-input {
+  width: 100%;
+  margin-top: 3px;
+  background: #171413;
+  border: 1px solid #3e3835;
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: #e6dfd3;
+  outline: none;
+  user-select: text;
+}
+
+.settings-input:focus {
+  border-color: var(--lcd-amber);
+}
+
+.settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 10px;
+}

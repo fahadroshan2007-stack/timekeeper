@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import Paper from "./components/Paper";
+import Roller from "./components/Roller";
 import Chassis from "./components/Chassis";
 import SettingsModal from "./components/SettingsModal";
 import SessionEndPrompt from "./components/SessionEndPrompt";
@@ -9,10 +11,9 @@ import { attachChassisDrag } from "./lib/windowDrag";
 import { fetchIncompleteTasks, runBatchSync } from "./lib/notion";
 import type { TimekeeperMode } from "./lib/timekeeper";
 
-const TIMER_SECONDS = 25 * 60;
 const API_KEY_STORAGE = "timekeeper.notion.apiKey";
 const DB_ID_STORAGE = "timekeeper.notion.databaseId";
-const TOAST_MS = 4500;
+const TOAST_MS = 4000;
 
 export default function App() {
   const [markdown, setMarkdown] = useState(
@@ -30,6 +31,7 @@ export default function App() {
   const [toast, setToast] = useState<string | null>(null);
   const [logging, setLogging] = useState(false);
   const [mode, setMode] = useState<TimekeeperMode>("timer");
+  const [timerPreset, setTimerPreset] = useState(25);
 
   const {
     tasks,
@@ -38,8 +40,9 @@ export default function App() {
     assignAccumulatedMinutes,
     removeTask,
     mergeFetched,
+    addSingleTask,
   } = useTaskList("");
-  const session = useTimekeeperSession({ mode, initialSeconds: TIMER_SECONDS });
+  const session = useTimekeeperSession({ mode, initialSeconds: timerPreset * 60 });
 
   const chassisRef = useRef<HTMLDivElement>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -54,13 +57,18 @@ export default function App() {
   useEffect(() => {
     const el = chassisRef.current;
     if (!el) return;
-    return attachChassisDrag(el);
-  }, []);
+    return attachChassisDrag(el, {
+      onError: (error) =>
+        showToast(
+          `Drag failed: ${error instanceof Error ? error.message : String(error)}`
+        ),
+    });
+  }, [showToast]);
 
   const refreshFromNotion = useCallback(
     async (key = apiKey, dbId = databaseId, announce = true) => {
       if (!key || !dbId) {
-        if (announce) showToast("Set your Notion key + database in … first.");
+        if (announce) showToast("Set your Notion key + database in ••• first.");
         return;
       }
       try {
@@ -101,6 +109,13 @@ export default function App() {
     setActiveTaskId((prev) => (prev === taskId ? null : taskId));
   }, []);
 
+  const handleQuickAdd = useCallback(
+    (title: string) => {
+      addSingleTask(title);
+    },
+    [addSingleTask]
+  );
+
   const handleSaveSettings = useCallback(
     (key: string, dbId: string) => {
       setApiKey(key);
@@ -114,43 +129,70 @@ export default function App() {
     [refreshFromNotion, showToast]
   );
 
+  const handleMinimize = useCallback(() => {
+    getCurrentWindow()
+      .minimize()
+      .catch((error) => showToast(`Minimize failed: ${String(error)}`));
+  }, [showToast]);
+
+  const handleClose = useCallback(() => {
+    getCurrentWindow()
+      .close()
+      .catch((error) => showToast(`Close failed: ${String(error)}`));
+  }, [showToast]);
+
   const handleLog = useCallback(async () => {
     const checked = tasks.filter((task) => task.isChecked);
     if (checked.length === 0) {
-      showToast("No checked tasks to log.");
+      showToast("NO CHECKED TASKS TO LOG");
       return;
     }
     if (!apiKey || !databaseId) {
-      showToast("Set your Notion key + database in … first.");
+      showToast("SET YOUR NOTION KEY IN ••• FIRST");
       return;
     }
     setLogging(true);
     try {
       const results = await runBatchSync({ apiKey, databaseId, tasks: checked });
-      const okIds = results
-        .filter((r) => r.ok)
-        .map((r) => r.taskId);
+      const okIds = results.filter((r) => r.ok).map((r) => r.taskId);
       const failed = results.filter((r) => !r.ok);
       for (const id of okIds) removeTask(id);
       if (failed.length > 0) {
         const first = failed[0];
-        showToast(`Failed to sync ${failed.length} task(s) — kept on paper. ${first.error ?? ""}`);
+        showToast(`SYNC FAILED ×${failed.length} — KEPT ON PAPER`);
+        console.error("Notion sync failures:", first.error);
       } else {
-        showToast(`Logged ${okIds.length} task(s) to Notion ✓`);
+        showToast(`SYNCED ${okIds.length} TO NOTION ✓`);
       }
     } catch (error) {
       showToast(
-        `Notion sync failed: ${error instanceof Error ? error.message : String(error)}`
+        `NOTION SYNC FAILED: ${error instanceof Error ? error.message : String(error)}`
       );
     } finally {
       setLogging(false);
     }
   }, [tasks, apiKey, databaseId, removeTask, showToast]);
 
+  const activeTask = tasks.find((task) => task.localId === activeTaskId) ?? null;
   const taskOptions = tasks.map(({ localId, title }) => ({ localId, title }));
 
+  const sessionPrompt = (
+    <SessionEndPrompt
+      open={session.promptOpen}
+      elapsedSeconds={session.promptMinutes * 60}
+      taskOptions={taskOptions}
+      activeTaskId={activeTaskId}
+      activeTaskTitle={activeTask?.title ?? null}
+      onAssign={(taskId) => {
+        assignAccumulatedMinutes(taskId, session.promptMinutes);
+        session.discardPrompt();
+      }}
+      onDiscard={session.discardPrompt}
+    />
+  );
+
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden bg-transparent">
+    <div className="typewriter-widget">
       <Paper
         markdown={markdown}
         onMarkdownChange={setMarkdown}
@@ -160,15 +202,22 @@ export default function App() {
         onToggleTask={toggleTask}
         onActivateTask={handleActivate}
         onLoad={handleLoad}
-        onEdit={() => setShowInput(true)}
+        onEdit={() => setShowInput((v) => !v)}
         onRefresh={() => refreshFromNotion(apiKey, databaseId, true)}
+        onQuickAdd={handleQuickAdd}
       />
+
+      <Roller />
 
       <div ref={chassisRef} data-testid="chassis-drag" className="flex min-h-0 flex-1 flex-col">
         <Chassis
           mode={mode}
           status={session.status}
           displaySeconds={session.displaySeconds}
+          elapsedSeconds={session.elapsedSeconds}
+          timerPreset={timerPreset}
+          activeLabel={activeTask ? activeTask.title : null}
+          sessionPrompt={sessionPrompt}
           onModeChange={setMode}
           onStart={session.start}
           onPause={session.pause}
@@ -178,20 +227,11 @@ export default function App() {
           logging={logging}
           onLog={handleLog}
           onSettings={() => setSettingsOpen(true)}
+          onMinimize={handleMinimize}
+          onClose={handleClose}
+          onTimerPreset={setTimerPreset}
         />
       </div>
-
-      <SessionEndPrompt
-        open={session.promptOpen}
-        elapsedSeconds={session.promptMinutes * 60}
-        taskOptions={taskOptions}
-        activeTaskId={activeTaskId}
-        onAssign={(taskId) => {
-          assignAccumulatedMinutes(taskId, session.promptMinutes);
-          session.discardPrompt();
-        }}
-        onDiscard={session.discardPrompt}
-      />
 
       <SettingsModal
         open={settingsOpen}
@@ -202,11 +242,7 @@ export default function App() {
       />
 
       {toast && (
-        <div
-          data-testid="toast"
-          role="status"
-          className="pointer-events-none absolute bottom-3 left-1/2 z-30 max-w-[90%] -translate-x-1/2 rounded-lg border border-[#c9a959] bg-[#121622]/95 px-3 py-1.5 font-mono text-[11px] text-[#f5c518] shadow-lg"
-        >
+        <div data-testid="toast" role="status" className="stamp-toast">
           {toast}
         </div>
       )}

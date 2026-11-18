@@ -1,0 +1,1404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Typewriter TimeKeeper // Visual Reference & Prototype</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      /* Paper Palette */
+      --paper-bg: #FAF6EE;
+      --paper-line: #EAE3D2;
+      --paper-ink: #24201E;
+      --paper-muted: #8C8275;
+      --ribbon-red: #D94E34;
+      --ribbon-red-soft: rgba(217, 78, 52, 0.12);
+
+      /* Chassis & Hardware Palette */
+      --chassis-body: #282423;
+      --chassis-top: #36312F;
+      --chassis-dark: #191615;
+      --roller-rubber: #1E1C1B;
+      --chrome-light: #E2DFD9;
+      --chrome-mid: #9E988E;
+      --chrome-dark: #57524B;
+
+      /* LCD Display */
+      --lcd-bg: #111613;
+      --lcd-phosphor: #5DF29A;
+      --lcd-phosphor-dim: rgba(93, 242, 154, 0.16);
+      --lcd-amber: #F5B041;
+
+      /* Keycaps */
+      --key-cream: #F3ECE0;
+      --key-cream-shadow: #B8AE9E;
+      --key-red: #D94E34;
+      --key-red-shadow: #8E2B19;
+      --key-dark: #3B3634;
+      --key-dark-shadow: #171413;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      margin: 0;
+      min-height: 100vh;
+      transition: background-color 0.35s ease;
+    }
+
+    /* Preview Canvas Environments */
+    body.env-desk {
+      background-color: #DFD6C7;
+      background-image:
+        radial-gradient(circle at 25% 20%, rgba(255, 251, 242, 0.65) 0%, transparent 55%),
+        radial-gradient(circle at 80% 80%, rgba(186, 171, 148, 0.45) 0%, transparent 60%);
+    }
+
+    body.env-dark {
+      background-color: #141517;
+      background-image:
+        radial-gradient(circle at 30% 20%, rgba(45, 49, 58, 0.5) 0%, transparent 60%),
+        radial-gradient(circle at 75% 85%, rgba(217, 78, 52, 0.08) 0%, transparent 50%);
+    }
+
+    body.env-transparent {
+      background-color: #E5E7EB;
+      background-image:
+        linear-gradient(45deg, #D1D5DB 25%, transparent 25%),
+        linear-gradient(-45deg, #D1D5DB 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #D1D5DB 75%),
+        linear-gradient(-45deg, transparent 75%, #D1D5DB 75%);
+      background-size: 24px 24px;
+      background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+    }
+
+    .font-typewriter {
+      font-family: 'Courier Prime', 'Space Mono', monospace;
+    }
+
+    .font-lcd {
+      font-family: 'JetBrains Mono', monospace;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* =========================================
+       WIDGET CONTAINER & FLOATING SHADOW
+       ========================================= */
+    .widget-wrapper {
+      width: 356px;
+      position: relative;
+      filter: drop-shadow(0 26px 38px rgba(20, 16, 14, 0.34)) drop-shadow(0 6px 12px rgba(20, 16, 14, 0.18));
+      transition: transform 0.2s ease;
+    }
+
+    /* =========================================
+       1. THE ROLLING PAPER (TOP SECTION)
+       ========================================= */
+    .paper-sheet {
+      width: 312px;
+      margin: 0 auto;
+      background-color: var(--paper-bg);
+      /* Subtle horizontal ruled typewriter lines + paper grain */
+      background-image:
+        repeating-linear-gradient(
+          to bottom,
+          transparent 0px,
+          transparent 31px,
+          var(--paper-line) 31px,
+          var(--paper-line) 32px
+        );
+      color: var(--paper-ink);
+      position: relative;
+      z-index: 10;
+      padding: 16px 18px 22px 18px;
+      border-left: 1px solid rgba(0, 0, 0, 0.06);
+      border-right: 1px solid rgba(0, 0, 0, 0.06);
+      box-shadow:
+        inset 0 -14px 18px -10px rgba(28, 22, 18, 0.35),
+        inset 0 2px 4px rgba(255, 255, 255, 0.9);
+      transition: height 0.25s ease;
+    }
+
+    /* Serrated / Perforated Top Edge of Paper */
+    .paper-serrated-top {
+      width: 312px;
+      height: 10px;
+      margin: 0 auto;
+      background: linear-gradient(135deg, transparent 50%, var(--paper-bg) 50%),
+                  linear-gradient(225deg, transparent 50%, var(--paper-bg) 50%);
+      background-position: top left, top left;
+      background-size: 12px 10px;
+      background-repeat: repeat-x;
+      filter: drop-shadow(0 -1px 1px rgba(0,0,0,0.04));
+    }
+
+    /* Paper Header Stamp */
+    .paper-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1.5px dashed #CFC5B4;
+      padding-bottom: 8px;
+      margin-bottom: 8px;
+    }
+
+    /* Task Row Styling */
+    .task-list {
+      min-height: 186px;
+      max-height: 245px;
+      overflow-y: auto;
+      padding-right: 2px;
+    }
+
+    .task-list::-webkit-scrollbar {
+      width: 4px;
+    }
+    .task-list::-webkit-scrollbar-thumb {
+      background: #D4CBB9;
+      border-radius: 4px;
+    }
+
+    .task-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      padding: 6px 6px;
+      border-radius: 5px;
+      cursor: pointer;
+      position: relative;
+      transition: background-color 0.15s ease, opacity 0.25s ease, transform 0.25s ease;
+    }
+
+    .task-row:hover {
+      background-color: rgba(217, 78, 52, 0.05);
+    }
+
+    .task-row.is-active {
+      background-color: var(--ribbon-red-soft);
+    }
+
+    /* Red Ribbon Active Underline */
+    .task-row.is-active .task-text {
+      text-decoration: underline;
+      text-decoration-color: var(--ribbon-red);
+      text-decoration-thickness: 2px;
+      text-underline-offset: 4px;
+      font-weight: 700;
+    }
+
+    /* Retro Square Typewriter Checkbox */
+    .retro-checkbox {
+      width: 15px;
+      height: 15px;
+      margin-top: 2px;
+      border: 1.5px solid #5A524A;
+      border-radius: 2px;
+      background: #FFFDF9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.15s ease;
+      box-shadow: inset 0 1px 2px rgba(0,0,0,0.08);
+    }
+
+    .task-row.is-checked .retro-checkbox {
+      background-color: var(--ribbon-red);
+      border-color: var(--ribbon-red);
+      color: #FFFDF9;
+    }
+
+    /* Animated Red Ink Strikethrough */
+    .task-text-wrapper {
+      position: relative;
+      flex: 1;
+      line-height: 1.35;
+      font-size: 13px;
+    }
+
+    .task-text {
+      position: relative;
+      display: inline;
+      transition: color 0.2s ease;
+    }
+
+    .task-row.is-checked .task-text {
+      color: #93897C;
+    }
+
+    .strike-line {
+      position: absolute;
+      left: 0;
+      top: 52%;
+      height: 1.8px;
+      width: 0%;
+      background-color: var(--ribbon-red);
+      transition: width 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+      pointer-events: none;
+    }
+
+    .task-row.is-checked .strike-line {
+      width: 100%;
+    }
+
+    /* Roll-up animation when LOGged */
+    .task-row.is-logging {
+      opacity: 0;
+      transform: translateY(-14px) scale(0.96);
+    }
+
+    /* Time Badge Pill */
+    .time-pill {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 999px;
+      background: #EFE6D5;
+      color: #7A543E;
+      border: 1px solid #DFD2BC;
+      white-space: nowrap;
+      margin-top: 1px;
+    }
+
+    .time-pill.has-time {
+      background: #FDECE8;
+      color: #B93820;
+      border-color: #F3C1B6;
+    }
+
+    /* Markdown Raw Editor Textarea */
+    .paper-textarea {
+      width: 100%;
+      min-height: 186px;
+      background: rgba(255, 253, 248, 0.85);
+      border: 1px dashed #B9AE9C;
+      border-radius: 4px;
+      padding: 8px;
+      font-family: 'Courier Prime', monospace;
+      font-size: 12.5px;
+      line-height: 1.5;
+      color: var(--paper-ink);
+      resize: none;
+      outline: none;
+      user-select: text;
+    }
+
+    /* =========================================
+       2. PLATEN ROLLER & CARRIAGE BAR (DIVIDER)
+       ========================================= */
+    .roller-assembly {
+      position: relative;
+      height: 26px;
+      width: 356px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+      margin-top: -4px;
+    }
+
+    /* Left & Right Knurled Chrome Carriage Knobs */
+    .carriage-knob {
+      width: 16px;
+      height: 24px;
+      border-radius: 3px;
+      background: repeating-linear-gradient(
+        to bottom,
+        var(--chrome-light) 0px,
+        var(--chrome-light) 2px,
+        var(--chrome-dark) 2px,
+        var(--chrome-dark) 4px
+      );
+      border: 1px solid #3C3834;
+      box-shadow: 0 3px 5px rgba(0, 0, 0, 0.4);
+    }
+
+    .carriage-stem {
+      width: 6px;
+      height: 10px;
+      background: linear-gradient(to bottom, #D6D2C9, #6E685F);
+    }
+
+    /* Dark Rubber Platen Roller */
+    .platen-roller {
+      width: 316px;
+      height: 20px;
+      border-radius: 4px;
+      background: linear-gradient(
+        to bottom,
+        #3A3634 0%,
+        #1F1C1B 38%,
+        #12100F 75%,
+        #2B2725 100%
+      );
+      box-shadow:
+        0 4px 8px rgba(0, 0, 0, 0.55),
+        inset 0 1px 1px rgba(255, 255, 255, 0.18);
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    /* Metallic Paper-Bail Rod + Pinch Rollers */
+    .paper-bail-rod {
+      width: 100%;
+      height: 3px;
+      background: linear-gradient(to bottom, #F4F2ED, #8C867C);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+      position: relative;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 38px;
+      align-items: center;
+    }
+
+    .pinch-wheel {
+      width: 14px;
+      height: 7px;
+      background: #181615;
+      border: 1px solid #6E685F;
+      border-radius: 2px;
+    }
+
+    /* =========================================
+       3. TYPEWRITER CHASSIS (BOTTOM SECTION)
+       ========================================= */
+    .typewriter-chassis {
+      width: 344px;
+      margin: -6px auto 0 auto;
+      background: linear-gradient(180deg, var(--chassis-top) 0%, var(--chassis-body) 18%, #1F1C1B 100%);
+      border-radius: 10px 10px 22px 22px;
+      padding: 16px 18px 20px 18px;
+      position: relative;
+      z-index: 15;
+      border-top: 1px solid rgba(255, 255, 255, 0.14);
+      border-bottom: 4px solid #12100F;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.12),
+        inset 0 -6px 12px rgba(0, 0, 0, 0.45);
+    }
+
+    /* Subtle Vintage Ribbed Grill Lines on Chassis Shoulders */
+    .chassis-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .brand-plate {
+      background: linear-gradient(180deg, #1E1B1A, #141211);
+      border: 1px solid #47413D;
+      border-radius: 3px;
+      padding: 2px 8px;
+      font-family: 'Space Mono', monospace;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      color: #D6CBB8;
+      box-shadow: inset 0 1px 2px rgba(0,0,0,0.8);
+    }
+
+    /* =========================================
+       4. EMBEDDED RETRO LCD & MODE SWITCH
+       ========================================= */
+    .lcd-deck {
+      background: #1B1817;
+      border: 1px solid #3E3835;
+      border-radius: 9px;
+      padding: 10px 12px;
+      box-shadow:
+        inset 0 3px 8px rgba(0, 0, 0, 0.75),
+        0 1px 0 rgba(255, 255, 255, 0.08);
+      margin-bottom: 14px;
+    }
+
+    .lcd-screen {
+      background: var(--lcd-bg);
+      border: 1.5px solid #2C332F;
+      border-radius: 6px;
+      padding: 8px 11px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: inset 0 0 14px rgba(0, 0, 0, 0.9);
+    }
+
+    /* Subtle CRT / LCD Scanline overlay */
+    .lcd-screen::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, 0.02) 0px,
+        rgba(255, 255, 255, 0.02) 1px,
+        transparent 1px,
+        transparent 3px
+      );
+      pointer-events: none;
+    }
+
+    .lcd-digits {
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: 0.04em;
+      color: var(--lcd-phosphor);
+      text-shadow: 0 0 10px rgba(93, 242, 154, 0.45);
+      transition: color 0.25s ease, text-shadow 0.25s ease;
+    }
+
+    .lcd-digits.is-stopwatch {
+      color: var(--lcd-amber);
+      text-shadow: 0 0 10px rgba(245, 176, 65, 0.45);
+    }
+
+    /* Mechanical Rocker Toggle (TMR vs SW) */
+    .mode-rocker {
+      display: inline-flex;
+      background: #12100F;
+      border: 1px solid #443E3B;
+      border-radius: 6px;
+      padding: 2px;
+      gap: 2px;
+    }
+
+    .mode-rocker button {
+      font-family: 'Space Mono', monospace;
+      font-size: 9.5px;
+      font-weight: 700;
+      padding: 3px 7px;
+      border-radius: 4px;
+      color: #857D73;
+      transition: all 0.15s ease;
+      cursor: pointer;
+    }
+
+    .mode-rocker button.active {
+      background: #3A3431;
+      color: #FAF6EE;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.15);
+    }
+
+    /* =========================================
+       5. TACTILE MECHANICAL TYPEWRITER KEYCAPS
+       ========================================= */
+    .key-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 0.72fr;
+      gap: 9px;
+    }
+
+    .tw-key {
+      position: relative;
+      border: none;
+      border-radius: 9px;
+      padding: 9px 4px 8px 4px;
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      transition: transform 0.07s ease, box-shadow 0.07s ease;
+      outline: none;
+    }
+
+    /* Cream Keycap */
+    .tw-key-cream {
+      background: linear-gradient(180deg, #FAF5EC 0%, var(--key-cream) 100%);
+      color: #262220;
+      border: 1.5px solid #B5ACA0;
+      box-shadow:
+        0 4px 0 var(--key-cream-shadow),
+        0 6px 8px rgba(0, 0, 0, 0.45),
+        inset 0 1px 0 #FFFFFF;
+    }
+
+    .tw-key-cream:active,
+    .tw-key-cream.is-pressed {
+      transform: translateY(3px);
+      box-shadow:
+        0 1px 0 var(--key-cream-shadow),
+        0 2px 3px rgba(0, 0, 0, 0.45),
+        inset 0 1px 0 #FFFFFF;
+    }
+
+    /* Coral-Red LOG Keycap */
+    .tw-key-red {
+      background: linear-gradient(180deg, #E85D43 0%, var(--key-red) 100%);
+      color: #FFFDF9;
+      border: 1.5px solid #F38A76;
+      box-shadow:
+        0 4px 0 var(--key-red-shadow),
+        0 6px 8px rgba(0, 0, 0, 0.45),
+        inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    }
+
+    .tw-key-red:active,
+    .tw-key-red.is-pressed {
+      transform: translateY(3px);
+      box-shadow:
+        0 1px 0 var(--key-red-shadow),
+        0 2px 3px rgba(0, 0, 0, 0.45);
+    }
+
+    /* Dark Utility Keycap (...) */
+    .tw-key-dark {
+      background: linear-gradient(180deg, #47413F 0%, var(--key-dark) 100%);
+      color: #E6DFD3;
+      border: 1.5px solid #635B57;
+      box-shadow:
+        0 4px 0 var(--key-dark-shadow),
+        0 6px 8px rgba(0, 0, 0, 0.45),
+        inset 0 1px 0 rgba(255, 255, 255, 0.16);
+    }
+
+    .tw-key-dark:active {
+      transform: translateY(3px);
+      box-shadow:
+        0 1px 0 var(--key-dark-shadow),
+        0 2px 3px rgba(0, 0, 0, 0.45);
+    }
+
+    /* =========================================
+       6. SESSION-END LABEL-MAKER PROMPT STRIP
+       ========================================= */
+    .session-ribbon {
+      background: #FAF6EE;
+      border: 1.5px solid #D94E34;
+      border-radius: 6px;
+      padding: 8px 10px;
+      margin-bottom: 10px;
+      color: #24201E;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      animation: slideDownRibbon 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes slideDownRibbon {
+      from {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.97);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    /* Toast Stamp Notification */
+    .stamp-toast {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: #FAF6EE;
+      color: #D94E34;
+      border: 2px solid #D94E34;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 9px;
+      border-radius: 4px;
+      transform: rotate(-4deg) scale(0.9);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 40;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+      transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .stamp-toast.show {
+      opacity: 1;
+      transform: rotate(-3deg) scale(1);
+    }
+  </style>
+</head>
+<body class="env-desk text-stone-800 flex flex-col lg:flex-row items-center justify-center p-4 md:p-8 gap-8">
+
+  <!-- =========================================================
+       LEFT / CENTER: INTERACTIVE DESKTOP WIDGET STAGE
+       ========================================================= -->
+  <div class="flex flex-col items-center justify-center flex-1 w-full max-w-xl">
+
+    <!-- Top Environment & Demo Controls Bar -->
+    <div class="mb-6 flex flex-wrap items-center justify-center gap-2 bg-white/85 backdrop-blur-md border border-stone-300/80 px-3 py-2 rounded-full shadow-sm text-xs">
+      <span class="font-semibold text-stone-600 px-1.5">Backdrop:</span>
+      <button onclick="setEnv('env-desk')" id="btn-env-desk" class="px-2.5 py-1 rounded-full bg-stone-800 text-white font-medium transition">Warm Desk</button>
+      <button onclick="setEnv('env-dark')" id="btn-env-dark" class="px-2.5 py-1 rounded-full text-stone-600 hover:bg-stone-200 font-medium transition">Dark Desktop</button>
+      <button onclick="setEnv('env-transparent')" id="btn-env-transparent" class="px-2.5 py-1 rounded-full text-stone-600 hover:bg-stone-200 font-medium transition">Transparent Grid</button>
+
+      <div class="h-4 w-[1px] bg-stone-300 mx-1"></div>
+
+      <button onclick="toggleSound()" id="btn-sound" class="px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-300 font-medium hover:bg-amber-200 transition" title="Toggle mechanical key sound">
+        🔊 Clicks: ON
+      </button>
+    </div>
+
+    <!-- THE FLOATING TYPEWRITER WIDGET -->
+    <div class="widget-wrapper" id="widget-root">
+
+      <!-- Stamped Notion Sync Toast -->
+      <div id="stamp-toast" class="stamp-toast">SYNCED TO NOTION ✓</div>
+
+      <!-- 1. TOP SECTION: SERRATED PAPER + ROLLING SHEET -->
+      <div class="paper-serrated-top"></div>
+      <div class="paper-sheet" id="paper-sheet" ondblclick="enterEditMode()" title="Double-click paper to edit raw Markdown">
+        <!-- Paper Header -->
+        <div class="paper-header">
+          <div class="flex items-center gap-2">
+            <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)]" title="Connected to Notion Database"></span>
+            <span class="font-typewriter font-bold text-[11px] tracking-wider uppercase text-stone-700">STUDY PLAN // NOTION</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button onclick="toggleEditMode(event)" id="btn-edit-paper" class="text-[10px] font-typewriter px-1.5 py-0.5 rounded border border-stone-300 text-stone-600 hover:bg-stone-200/70 transition" title="Toggle Markdown Edit Mode">
+              EDIT .MD
+            </button>
+            <button onclick="simulateRefresh(event)" id="btn-refresh" class="text-xs font-bold px-1.5 py-0.5 rounded text-stone-600 hover:bg-stone-200/70 transition" title="Pull incomplete tasks from Notion">
+              ↻
+            </button>
+          </div>
+        </div>
+
+        <!-- Interactive Checklist View -->
+        <div id="checklist-container" class="task-list space-y-0.5"></div>
+
+        <!-- Raw Markdown Edit View (Hidden by default) -->
+        <div id="markdown-editor-container" class="hidden">
+          <textarea id="markdown-textarea" class="paper-textarea" placeholder="- [ ] Write literature review&#10;- [ ] Solve 3 LeetCode mediums"></textarea>
+          <div class="flex items-center justify-between mt-1.5">
+            <span class="text-[10px] font-typewriter text-stone-500">Markdown syntax: - [ ] Task</span>
+            <button onclick="saveEditMode(event)" class="text-[10px] font-typewriter font-bold px-2.5 py-1 rounded bg-[#D94E34] text-white hover:bg-[#c03e26] transition">
+              DONE (RENDER)
+            </button>
+          </div>
+        </div>
+
+        <!-- Quick Add Inline Input -->
+        <form onsubmit="handleQuickAdd(event)" id="quick-add-form" class="mt-2 pt-1.5 border-t border-stone-300/70 flex items-center gap-1.5">
+          <span class="font-typewriter text-xs text-stone-400">+</span>
+          <input
+            type="text"
+            id="quick-add-input"
+            placeholder="Type task & press Enter..."
+            class="w-full bg-transparent font-typewriter text-xs text-stone-800 placeholder-stone-400 focus:outline-none select-text"
+          />
+        </form>
+      </div>
+
+      <!-- 2. PLATEN ROLLER & CARRIAGE BAR -->
+      <div class="roller-assembly">
+        <div class="carriage-knob"></div>
+        <div class="carriage-stem"></div>
+        <div class="platen-roller">
+          <div class="paper-bail-rod">
+            <div class="pinch-wheel"></div>
+            <div class="pinch-wheel"></div>
+            <div class="pinch-wheel"></div>
+          </div>
+        </div>
+        <div class="carriage-stem"></div>
+        <div class="carriage-knob"></div>
+      </div>
+
+      <!-- 3. BOTTOM SECTION: RETRO TYPEWRITER CHASSIS -->
+      <div class="typewriter-chassis">
+
+        <!-- Chassis Top Badge & Active Task Indicator -->
+        <div class="chassis-header">
+          <div class="brand-plate">TIMEKEEPER // MK-I</div>
+          <div class="flex items-center gap-1.5">
+            <span class="text-[10px] font-mono text-stone-400" id="active-task-indicator">NO FOCUS SET</span>
+          </div>
+        </div>
+
+        <!-- Session-End Label-Maker Prompt Banner (Hidden unless triggered) -->
+        <div id="session-prompt" class="session-ribbon hidden">
+          <div class="flex items-center justify-between gap-2 mb-1.5">
+            <span class="font-typewriter text-[11px] font-bold text-[#D94E34]" id="prompt-headline">
+              ⏱ Save 25m session?
+            </span>
+          </div>
+          <div id="prompt-task-select-wrap" class="mb-2 hidden">
+            <select id="prompt-task-select" class="w-full text-xs font-typewriter bg-white border border-stone-300 rounded px-2 py-1 text-stone-800 outline-none"></select>
+          </div>
+          <div class="flex items-center justify-end gap-1.5">
+            <button onclick="discardSessionPrompt()" class="px-2.5 py-1 rounded text-[10px] font-typewriter font-bold border border-stone-300 text-stone-600 hover:bg-stone-200 transition">
+              DISCARD
+            </button>
+            <button onclick="confirmSessionPrompt()" class="px-2.5 py-1 rounded text-[10px] font-typewriter font-bold bg-[#D94E34] text-white hover:bg-[#be3c24] transition">
+              SAVE TIME
+            </button>
+          </div>
+        </div>
+
+        <!-- Embedded LCD Display & Mode Toggle Deck -->
+        <div class="lcd-deck">
+          <div class="flex items-center justify-between gap-2">
+            <!-- Digital Readout Screen -->
+            <div class="lcd-screen flex-1">
+              <div class="flex items-center justify-between mb-1">
+                <span id="lcd-mode-label" class="font-lcd text-[9px] font-bold tracking-widest text-emerald-400/80">TIMER // READY</span>
+                <span id="lcd-session-badge" class="font-lcd text-[9px] text-stone-400">25M TARGET</span>
+              </div>
+              <div id="lcd-digits" class="lcd-digits">25:00</div>
+            </div>
+
+            <!-- Right Column: Mechanical Mode Switch + Timer Presets -->
+            <div class="flex flex-col items-end justify-between gap-2">
+              <div class="mode-rocker" title="Switch between Countdown Timer and Stopwatch">
+                <button id="btn-mode-timer" class="active" onclick="switchMode('timer')">TMR</button>
+                <button id="btn-mode-stopwatch" onclick="switchMode('stopwatch')">SW</button>
+              </div>
+
+              <!-- Timer Duration Presets -->
+              <div id="timer-presets" class="flex items-center gap-1">
+                <button onclick="setTimerPreset(15)" class="px-1.5 py-0.5 rounded bg-stone-800 hover:bg-stone-700 text-[9.5px] font-lcd text-stone-300 border border-stone-700 transition">15m</button>
+                <button onclick="setTimerPreset(25)" class="px-1.5 py-0.5 rounded bg-stone-700 text-[9.5px] font-lcd text-amber-300 border border-amber-500/40 transition">25m</button>
+                <button onclick="setTimerPreset(45)" class="px-1.5 py-0.5 rounded bg-stone-800 hover:bg-stone-700 text-[9.5px] font-lcd text-stone-300 border border-stone-700 transition">45m</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tactile Typewriter Keys Row -->
+        <div class="key-row">
+          <button onclick="handleStartPause()" id="key-start" class="tw-key tw-key-cream">
+            <span id="key-start-label">START</span>
+          </button>
+          <button onclick="handleStopReset()" id="key-stop" class="tw-key tw-key-cream">
+            <span id="key-stop-label">RESET</span>
+          </button>
+          <button onclick="handleLogBatch()" id="key-log" class="tw-key tw-key-red" title="Batch sync checked tasks to Notion">
+            <span>LOG</span>
+          </button>
+          <button onclick="toggleSettingsModal()" id="key-settings" class="tw-key tw-key-dark" title="Notion API Settings">
+            <span>•••</span>
+          </button>
+        </div>
+
+        <!-- Subtle Settings Drawer inside Chassis (Toggled by ••• key) -->
+        <div id="settings-drawer" class="hidden mt-3 pt-3 border-t border-stone-700/80 text-xs text-stone-300 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-mono text-[10px] uppercase tracking-wider text-amber-300">Notion Integration</span>
+            <button onclick="toggleSettingsModal()" class="text-stone-400 hover:text-white text-xs">✕</button>
+          </div>
+          <div>
+            <label class="block text-[10px] font-mono text-stone-400 mb-0.5">NOTION_API_KEY</label>
+            <input type="password" value="secret_ntn_41c223a6fd0680d7..." readonly class="w-full bg-stone-900 border border-stone-700 rounded px-2 py-1 font-mono text-[11px] text-stone-300 select-text" />
+          </div>
+          <div>
+            <label class="block text-[10px] font-mono text-stone-400 mb-0.5">DATABASE_ID</label>
+            <input type="text" value="41c223a6fd0680d7bfe3fb3a18cc4b29" readonly class="w-full bg-stone-900 border border-stone-700 rounded px-2 py-1 font-mono text-[11px] text-emerald-400 select-text" />
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Quick Interactive Demo Helper Bar Below Widget -->
+    <div class="mt-6 flex flex-wrap items-center justify-center gap-2 text-xs">
+      <button onclick="simulateSessionComplete()" class="px-3 py-1.5 rounded-lg bg-white/90 hover:bg-white text-stone-800 border border-stone-300 shadow-sm font-medium transition">
+        ⚡ Demo: Finish 25m Session
+      </button>
+      <button onclick="resetDemoTasks()" class="px-3 py-1.5 rounded-lg bg-white/90 hover:bg-white text-stone-700 border border-stone-300 shadow-sm font-medium transition">
+        ↺ Reset Sample Tasks
+      </button>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       RIGHT PANEL: OPENCODE DESIGN SPEC & 1-CLICK PROMPT
+       ========================================================= -->
+  <aside class="w-full lg:w-[390px] bg-white/92 backdrop-blur-md border border-stone-300/90 rounded-2xl p-5 shadow-xl text-stone-800 flex flex-col gap-4">
+    <div>
+      <div class="flex items-center justify-between">
+        <span class="text-[11px] font-mono font-bold uppercase tracking-wider text-[#D94E34]">Visual Blueprint</span>
+        <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-stone-100 text-stone-600 border border-stone-200">356 × ~540px</span>
+      </div>
+      <h1 class="text-lg font-bold text-stone-900 mt-0.5">Typewriter TimeKeeper Spec</h1>
+      <p class="text-xs text-stone-600 mt-1 leading-relaxed">
+        Interact with the widget on the left to test the state flow, then copy the styling prompt below into <strong>OpenCode</strong> to skin your Tauri app to match this exact aesthetic.
+      </p>
+    </div>
+
+    <!-- Color Swatches -->
+    <div>
+      <h2 class="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">Design Tokens</h2>
+      <div class="grid grid-cols-2 gap-2 text-[11px] font-mono">
+        <div class="flex items-center gap-2 p-1.5 rounded-lg border border-stone-200 bg-stone-50">
+          <span class="w-5 h-5 rounded border border-stone-300 shrink-0" style="background:#FAF6EE"></span>
+          <div>
+            <div class="font-bold text-stone-800">#FAF6EE</div>
+            <div class="text-[10px] text-stone-500">Cream Paper</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 p-1.5 rounded-lg border border-stone-200 bg-stone-50">
+          <span class="w-5 h-5 rounded border border-stone-700 shrink-0" style="background:#282423"></span>
+          <div>
+            <div class="font-bold text-stone-800">#282423</div>
+            <div class="text-[10px] text-stone-500">Espresso Chassis</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 p-1.5 rounded-lg border border-stone-200 bg-stone-50">
+          <span class="w-5 h-5 rounded border border-red-800 shrink-0" style="background:#D94E34"></span>
+          <div>
+            <div class="font-bold text-stone-800">#D94E34</div>
+            <div class="text-[10px] text-stone-500">Ribbon Coral-Red</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 p-1.5 rounded-lg border border-stone-200 bg-stone-50">
+          <span class="w-5 h-5 rounded border border-emerald-900 shrink-0" style="background:#5DF29A"></span>
+          <div>
+            <div class="font-bold text-stone-800">#5DF29A</div>
+            <div class="text-[10px] text-stone-500">LCD Phosphor</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Key Interaction Anatomy -->
+    <div class="bg-stone-50 border border-stone-200 rounded-xl p-3 space-y-1.5 text-xs">
+      <div class="font-semibold text-stone-800">How to Test This Prototype:</div>
+      <ul class="list-disc pl-4 space-y-1 text-stone-600 text-[11.5px]">
+        <li><strong>Set Focus:</strong> Click any task's text to highlight it with a red typewriter-ribbon underline.</li>
+        <li><strong>Complete Task:</strong> Click the square checkbox to trigger the red ink strikethrough.</li>
+        <li><strong>Edit Markdown:</strong> Double-click the cream paper (or click <code class="bg-stone-200 px-1 rounded">EDIT .MD</code>) to paste raw checklist items.</li>
+        <li><strong>Log to Notion:</strong> Press the coral-red <strong>LOG</strong> keycap to roll away checked tasks.</li>
+      </ul>
+    </div>
+
+    <!-- 1-Click Copy Prompt for OpenCode -->
+    <div class="flex flex-col gap-2">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-semibold uppercase tracking-wider text-stone-500">OpenCode Polish Prompt</span>
+        <button onclick="copyOpenCodePrompt()" id="btn-copy-prompt" class="px-3 py-1 rounded-lg bg-[#D94E34] hover:bg-[#c03e26] text-white text-xs font-semibold shadow-sm transition">
+          Copy Prompt
+        </button>
+      </div>
+      <textarea id="opencode-prompt-text" readonly class="w-full h-36 bg-stone-900 text-stone-200 font-mono text-[11px] p-3 rounded-xl border border-stone-700 leading-relaxed resize-none focus:outline-none select-text">Update the visual styling of our Typewriter TimeKeeper widget to match a tactile Olivetti-inspired retro typewriter aesthetic:
+1. Paper Top (~58% height): Warm cream paper (#FAF6EE) with subtle 32px ruled lines (#EAE3D2), serrated top edge, Courier Prime/Space Mono typography, red ribbon underline (#D94E34) on the active task, animated red strikethrough on checked tasks, and amber pill badges for accumulated minutes.
+2. Platen Roller Divider: Cylindrical dark rubber roller (#1E1C1B) spanning between left/right knurled chrome carriage knobs, with a metallic paper-bail rod and 3 pinch wheels.
+3. Chassis Bottom (~42% height): Sculpted espresso-charcoal body (#282423) with a recessed dark LCD screen (#111613) showing glowing phosphor-green digits (#5DF29A) for Timer and warm amber (#F5B041) for Stopwatch, paired with a mechanical TMR/SW rocker switch.
+4. Tactile Keycaps: 3D beveled keycaps with bottom border shadows and active translateY(3px) press travel—warm cream (#F3ECE0) for START/PAUSE and RESET/STOP, coral-red (#D94E34) for LOG, and dark charcoal (#3B3634) for ••• settings.</textarea>
+    </div>
+  </aside>
+
+  <script>
+    // =========================================================
+    // STATE & DATA MODEL
+    // =========================================================
+    const INITIAL_TASKS = [
+      { localId: 't1', notionPageId: 'page-1', title: 'Watch CS50 Lecture 4 & take notes', isChecked: false, accumulatedMinutes: 25 },
+      { localId: 't2', notionPageId: 'page-2', title: 'Draft literature review outline', isChecked: false, accumulatedMinutes: 45 },
+      { localId: 't3', notionPageId: 'page-3', title: 'Solve 2 LeetCode medium arrays', isChecked: true, accumulatedMinutes: 30 },
+      { localId: 't4', notionPageId: null, title: 'Review Notion database schema', isChecked: false, accumulatedMinutes: 0 }
+    ];
+
+    let tasks = JSON.parse(JSON.stringify(INITIAL_TASKS));
+    let activeTaskId = 't1';
+    let isEditMode = false;
+    let soundEnabled = true;
+
+    // Timekeeper State
+    let mode = 'timer'; // 'timer' | 'stopwatch'
+    let timerPresetMinutes = 25;
+    let timerRemainingSeconds = 25 * 60;
+    let stopwatchElapsedSeconds = 0;
+    let isRunning = false;
+    let intervalId = null;
+
+    // Pending Session Prompt State
+    let pendingSessionMinutes = 0;
+
+    // =========================================================
+    // WEB AUDIO API: SUBTLE TYPEWRITER KEY CLACK
+    // =========================================================
+    let audioCtx = null;
+    function playKeyClick(pitch = 1.0) {
+      if (!soundEnabled) return;
+      try {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(220 * pitch, now);
+        osc.frequency.exponentialRampToValueAtTime(55, now + 0.045);
+
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.05);
+      } catch (e) {
+        // Ignore audio errors if blocked
+      }
+    }
+
+    function toggleSound() {
+      soundEnabled = !soundEnabled;
+      const btn = document.getElementById('btn-sound');
+      btn.textContent = soundEnabled ? '🔊 Clicks: ON' : '🔇 Clicks: OFF';
+      if (soundEnabled) playKeyClick(1.2);
+    }
+
+    // =========================================================
+    // RENDER PAPER & TASK LIST
+    // =========================================================
+    function renderTasks() {
+      const container = document.getElementById('checklist-container');
+      container.innerHTML = '';
+
+      if (tasks.length === 0) {
+        container.innerHTML = `
+          <div class="py-10 text-center font-typewriter text-xs text-stone-400">
+            Paper is clean.<br/>Type below or double-click to paste Markdown.
+          </div>
+        `;
+      } else {
+        tasks.forEach(task => {
+          const isActive = task.localId === activeTaskId;
+          const row = document.createElement('div');
+          row.id = `task-row-${task.localId}`;
+          row.className = `task-row ${task.isChecked ? 'is-checked' : ''} ${isActive ? 'is-active' : ''}`;
+
+          row.innerHTML = `
+            <button
+              type="button"
+              class="retro-checkbox"
+              aria-label="Toggle task complete"
+              onclick="toggleCheckTask(event, '${task.localId}')"
+            >
+              ${task.isChecked ? '<span class="text-[10px] font-bold leading-none">✓</span>' : ''}
+            </button>
+            <div class="task-text-wrapper font-typewriter" onclick="selectActiveTask(event, '${task.localId}')">
+              ${isActive ? '<span class="text-[#D94E34] font-bold mr-1">▸</span>' : ''}
+              <span class="task-text">${escapeHtml(task.title)}<span class="strike-line"></span></span>
+            </div>
+            ${task.accumulatedMinutes > 0
+              ? `<span class="time-pill has-time">${task.accumulatedMinutes}m</span>`
+              : ''
+            }
+          `;
+          container.appendChild(row);
+        });
+      }
+
+      updateActiveTaskHeader();
+    }
+
+    function updateActiveTaskHeader() {
+      const label = document.getElementById('active-task-indicator');
+      const activeTask = tasks.find(t => t.localId === activeTaskId);
+      if (activeTask) {
+        const shortName = activeTask.title.length > 22
+          ? activeTask.title.slice(0, 22) + '…'
+          : activeTask.title;
+        label.textContent = `FOCUS: ${shortName.toUpperCase()}`;
+        label.className = 'text-[10px] font-mono text-amber-300';
+      } else {
+        label.textContent = 'NO FOCUS SELECTED';
+        label.className = 'text-[10px] font-mono text-stone-400';
+      }
+    }
+
+    function toggleCheckTask(event, localId) {
+      event.stopPropagation();
+      playKeyClick(1.15);
+      const task = tasks.find(t => t.localId === localId);
+      if (task) {
+        task.isChecked = !task.isChecked;
+        renderTasks();
+      }
+    }
+
+    function selectActiveTask(event, localId) {
+      event.stopPropagation();
+      playKeyClick(0.95);
+      activeTaskId = (activeTaskId === localId) ? null : localId;
+      renderTasks();
+    }
+
+    function handleQuickAdd(event) {
+      event.preventDefault();
+      const input = document.getElementById('quick-add-input');
+      const title = input.value.trim();
+      if (!title) return;
+
+      playKeyClick(1.1);
+      const newTask = {
+        localId: 'local-' + Date.now(),
+        notionPageId: null,
+        title,
+        isChecked: false,
+        accumulatedMinutes: 0
+      };
+      tasks.push(newTask);
+      if (!activeTaskId) activeTaskId = newTask.localId;
+      input.value = '';
+      renderTasks();
+    }
+
+    // =========================================================
+    // MARKDOWN RAW EDIT MODE
+    // =========================================================
+    function enterEditMode() {
+      if (isEditMode) return;
+      isEditMode = true;
+      const mdLines = tasks.map(t => `- [${t.isChecked ? 'x' : ' '}] ${t.title}`).join('\n');
+      document.getElementById('markdown-textarea').value = mdLines;
+      document.getElementById('checklist-container').classList.add('hidden');
+      document.getElementById('quick-add-form').classList.add('hidden');
+      document.getElementById('markdown-editor-container').classList.remove('hidden');
+      document.getElementById('btn-edit-paper').textContent = 'CANCEL';
+      document.getElementById('markdown-textarea').focus();
+    }
+
+    function saveEditMode(event) {
+      if (event) event.stopPropagation();
+      playKeyClick(1.05);
+      const raw = document.getElementById('markdown-textarea').value;
+      const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+
+      const parsed = lines.map((line, idx) => {
+        const match = line.match(/^[-*]\s*\[(x|X|\s)\]\s*(.+)$/);
+        if (match) {
+          const isChecked = match[1].toLowerCase() === 'x';
+          const title = match[2].trim();
+          const existing = tasks.find(t => t.title === title);
+          return {
+            localId: existing ? existing.localId : `md-${Date.now()}-${idx}`,
+            notionPageId: existing ? existing.notionPageId : null,
+            title,
+            isChecked,
+            accumulatedMinutes: existing ? existing.accumulatedMinutes : 0
+          };
+        }
+        return {
+          localId: `md-${Date.now()}-${idx}`,
+          notionPageId: null,
+          title: line.replace(/^[-*]\s*/, ''),
+          isChecked: false,
+          accumulatedMinutes: 0
+        };
+      });
+
+      tasks = parsed;
+      if (!tasks.some(t => t.localId === activeTaskId)) {
+        activeTaskId = tasks[0] ? tasks[0].localId : null;
+      }
+      exitEditMode();
+    }
+
+    function exitEditMode() {
+      isEditMode = false;
+      document.getElementById('markdown-editor-container').classList.add('hidden');
+      document.getElementById('checklist-container').classList.remove('hidden');
+      document.getElementById('quick-add-form').classList.remove('hidden');
+      document.getElementById('btn-edit-paper').textContent = 'EDIT .MD';
+      renderTasks();
+    }
+
+    function toggleEditMode(event) {
+      event.stopPropagation();
+      if (isEditMode) {
+        exitEditMode();
+      } else {
+        enterEditMode();
+      }
+    }
+
+    // =========================================================
+    // TIMEKEEPER ENGINE (TIMER + STOPWATCH)
+    // =========================================================
+    function formatSeconds(totalSec) {
+      const hrs = Math.floor(totalSec / 3600);
+      const mins = Math.floor((totalSec % 3600) / 60);
+      const secs = totalSec % 60;
+      const pad = n => String(n).padStart(2, '0');
+      if (hrs > 0) return `${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
+      return `${pad(mins)}:${pad(secs)}`;
+    }
+
+    function updateDisplay() {
+      const digitsEl = document.getElementById('lcd-digits');
+      const modeLabelEl = document.getElementById('lcd-mode-label');
+      const badgeEl = document.getElementById('lcd-session-badge');
+      const startBtnLabel = document.getElementById('key-start-label');
+      const stopBtnLabel = document.getElementById('key-stop-label');
+
+      if (mode === 'timer') {
+        digitsEl.textContent = formatSeconds(timerRemainingSeconds);
+        digitsEl.classList.remove('is-stopwatch');
+        modeLabelEl.textContent = isRunning ? 'TIMER // RUNNING' : 'TIMER // PAUSED';
+        modeLabelEl.className = 'font-lcd text-[9px] font-bold tracking-widest text-emerald-400/90';
+        badgeEl.textContent = `${timerPresetMinutes}M TARGET`;
+        startBtnLabel.textContent = isRunning ? 'PAUSE' : 'START';
+        stopBtnLabel.textContent = 'RESET';
+      } else {
+        digitsEl.textContent = formatSeconds(stopwatchElapsedSeconds);
+        digitsEl.classList.add('is-stopwatch');
+        modeLabelEl.textContent = isRunning ? 'STOPWATCH // LIVE' : 'STOPWATCH // STANDBY';
+        modeLabelEl.className = 'font-lcd text-[9px] font-bold tracking-widest text-amber-400/90';
+        badgeEl.textContent = 'COUNT UP';
+        startBtnLabel.textContent = isRunning ? 'PAUSE' : 'START';
+        stopBtnLabel.textContent = stopwatchElapsedSeconds > 0 ? 'STOP' : 'RESET';
+      }
+    }
+
+    function handleStartPause() {
+      playKeyClick(0.85);
+      // Guard: if already running, toggle pause cleanly
+      if (isRunning) {
+        pauseEngine();
+        return;
+      }
+
+      isRunning = true;
+      updateDisplay();
+      intervalId = setInterval(() => {
+        if (mode === 'timer') {
+          if (timerRemainingSeconds > 0) {
+            timerRemainingSeconds--;
+            updateDisplay();
+          } else {
+            pauseEngine();
+            const mins = Math.max(1, timerPresetMinutes);
+            triggerSessionEndPrompt(mins);
+            timerRemainingSeconds = timerPresetMinutes * 60;
+            updateDisplay();
+          }
+        } else {
+          stopwatchElapsedSeconds++;
+          updateDisplay();
+        }
+      }, 1000);
+    }
+
+    function pauseEngine() {
+      isRunning = false;
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+      updateDisplay();
+    }
+
+    function handleStopReset() {
+      playKeyClick(0.8);
+      if (mode === 'stopwatch' && stopwatchElapsedSeconds > 0) {
+        const elapsed = stopwatchElapsedSeconds;
+        pauseEngine();
+        stopwatchElapsedSeconds = 0;
+        updateDisplay();
+        // Sub-15s auto-discard gate
+        if (elapsed >= 15) {
+          const mins = Math.max(1, Math.round(elapsed / 60));
+          triggerSessionEndPrompt(mins);
+        } else {
+          showToast('DISCARDED (<15S)');
+        }
+        return;
+      }
+
+      pauseEngine();
+      if (mode === 'timer') {
+        timerRemainingSeconds = timerPresetMinutes * 60;
+      } else {
+        stopwatchElapsedSeconds = 0;
+      }
+      updateDisplay();
+    }
+
+    function switchMode(newMode) {
+      if (mode === newMode) return;
+      playKeyClick(1.0);
+      // Auto-pause active session to prevent data loss
+      if (isRunning) {
+        pauseEngine();
+      }
+      mode = newMode;
+      document.getElementById('btn-mode-timer').classList.toggle('active', mode === 'timer');
+      document.getElementById('btn-mode-stopwatch').classList.toggle('active', mode === 'stopwatch');
+      document.getElementById('timer-presets').classList.toggle('hidden', mode !== 'timer');
+      updateDisplay();
+    }
+
+    function setTimerPreset(mins) {
+      playKeyClick(1.05);
+      pauseEngine();
+      timerPresetMinutes = mins;
+      timerRemainingSeconds = mins * 60;
+      updateDisplay();
+    }
+
+    // =========================================================
+    // SESSION-END LABEL-MAKER PROMPT
+    // =========================================================
+    function triggerSessionEndPrompt(minutes) {
+      pendingSessionMinutes = minutes;
+      const promptEl = document.getElementById('session-prompt');
+      const headlineEl = document.getElementById('prompt-headline');
+      const selectWrap = document.getElementById('prompt-task-select-wrap');
+      const selectEl = document.getElementById('prompt-task-select');
+
+      const activeTask = tasks.find(t => t.localId === activeTaskId);
+      if (activeTask) {
+        headlineEl.textContent = `⏱ Save ${minutes}m to "${activeTask.title.slice(0, 22)}${activeTask.title.length > 22 ? '…' : ''}"?`;
+        selectWrap.classList.add('hidden');
+      } else {
+        headlineEl.textContent = `⏱ Assign ${minutes}m session to:`;
+        selectEl.innerHTML = tasks.map(t => `<option value="${t.localId}">${escapeHtml(t.title)}</option>`).join('');
+        selectWrap.classList.remove('hidden');
+      }
+
+      promptEl.classList.remove('hidden');
+    }
+
+    function confirmSessionPrompt() {
+      playKeyClick(1.15);
+      let targetId = activeTaskId;
+      if (!targetId) {
+        targetId = document.getElementById('prompt-task-select').value;
+      }
+      const task = tasks.find(t => t.localId === targetId);
+      if (task) {
+        task.accumulatedMinutes += pendingSessionMinutes;
+        activeTaskId = task.localId;
+      }
+      pendingSessionMinutes = 0;
+      document.getElementById('session-prompt').classList.add('hidden');
+      renderTasks();
+      showToast(`+${task ? task.accumulatedMinutes : ''}M LOGGED TO PAPER`);
+    }
+
+    function discardSessionPrompt() {
+      playKeyClick(0.85);
+      pendingSessionMinutes = 0;
+      document.getElementById('session-prompt').classList.add('hidden');
+    }
+
+    function simulateSessionComplete() {
+      playKeyClick(1.1);
+      triggerSessionEndPrompt(timerPresetMinutes);
+    }
+
+    // =========================================================
+    // NOTION BATCH LOG & UTILITY ACTIONS
+    // =========================================================
+    function handleLogBatch() {
+      playKeyClick(0.75);
+      const checkedTasks = tasks.filter(t => t.isChecked);
+      if (checkedTasks.length === 0) {
+        showToast('NO CHECKED TASKS TO LOG');
+        return;
+      }
+
+      // Animate roll-up exit on checked rows
+      checkedTasks.forEach(t => {
+        const row = document.getElementById(`task-row-${t.localId}`);
+        if (row) row.classList.add('is-logging');
+      });
+
+      setTimeout(() => {
+        tasks = tasks.filter(t => !t.isChecked);
+        if (!tasks.some(t => t.localId === activeTaskId)) {
+          activeTaskId = tasks[0] ? tasks[0].localId : null;
+        }
+        renderTasks();
+        showToast(`SYNCED ${checkedTasks.length} TO NOTION ✓`);
+      }, 280);
+    }
+
+    function simulateRefresh(event) {
+      event.stopPropagation();
+      playKeyClick(1.2);
+      const btn = document.getElementById('btn-refresh');
+      btn.style.transform = 'rotate(360deg)';
+      btn.style.transition = 'transform 0.4s ease';
+      setTimeout(() => {
+        btn.style.transform = '';
+        btn.style.transition = '';
+      }, 420);
+      showToast('NOTION LIST UP TO DATE');
+    }
+
+    function toggleSettingsModal() {
+      playKeyClick(0.95);
+      document.getElementById('settings-drawer').classList.toggle('hidden');
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('stamp-toast');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      clearTimeout(toast._timer);
+      toast._timer = setTimeout(() => {
+        toast.classList.remove('show');
+      }, 2200);
+    }
+
+    function resetDemoTasks() {
+      playKeyClick(1.0);
+      tasks = JSON.parse(JSON.stringify(INITIAL_TASKS));
+      activeTaskId = 't1';
+      renderTasks();
+      showToast('SAMPLE TASKS RESTORED');
+    }
+
+    function setEnv(envClass) {
+      document.body.className = `${envClass} text-stone-800 flex flex-col lg:flex-row items-center justify-center p-4 md:p-8 gap-8`;
+      ['env-desk', 'env-dark', 'env-transparent'].forEach(id => {
+        const btn = document.getElementById(`btn-${id}`);
+        if (id === envClass) {
+          btn.className = 'px-2.5 py-1 rounded-full bg-stone-800 text-white font-medium transition';
+        } else {
+          btn.className = 'px-2.5 py-1 rounded-full text-stone-600 hover:bg-stone-200 font-medium transition';
+        }
+      });
+    }
+
+    function copyOpenCodePrompt() {
+      const textarea = document.getElementById('opencode-prompt-text');
+      textarea.select();
+      document.execCommand('copy');
+      const btn = document.getElementById('btn-copy-prompt');
+      btn.textContent = 'Copied! ✓';
+      setTimeout(() => {
+        btn.textContent = 'Copy Prompt';
+      }, 2000);
+    }
+
+    function escapeHtml(str) {
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    // Initialize on load
+    window.addEventListener('DOMContentLoaded', () => {
+      renderTasks();
+      updateDisplay();
+    });
+  </script>
+</body>
+</html>
