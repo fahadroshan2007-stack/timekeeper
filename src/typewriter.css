@@ -1087,6 +1087,112 @@ body {
 }
 
 /* =========================================
+   MOTION — small, lightweight touches
+   ========================================= */
+.retro-checkbox {
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.15s ease;
+  cursor: pointer;
+}
+
+.retro-checkbox:hover {
+  transform: scale(1.18);
+  border-color: var(--ribbon-red);
+}
+
+.retro-checkbox:active {
+  transform: scale(0.9);
+}
+
+.task-row.is-checked .retro-checkbox {
+  animation: checkboxPop 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes checkboxPop {
+  0% {
+    transform: scale(0.4);
+  }
+  60% {
+    transform: scale(1.35);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.task-row {
+  transition:
+    background-color 0.15s ease,
+    opacity 0.22s ease,
+    transform 0.22s ease;
+}
+
+.task-row.is-logging {
+  opacity: 0;
+  transform: translateY(-12px) scale(0.96);
+  pointer-events: none;
+}
+
+.task-text-wrapper {
+  transition: color 0.25s ease;
+}
+
+.strike-line {
+  transition: width 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.pulse-dot {
+  animation: pulseDot 2.6s ease-in-out infinite;
+}
+
+@keyframes pulseDot {
+  0%,
+  100% {
+    box-shadow: 0 0 4px rgba(16, 185, 129, 0.55);
+  }
+  50% {
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.9);
+  }
+}
+
+.active-focus {
+  transition: color 0.2s ease;
+}
+
+.paper-btn {
+  transition:
+    background 0.15s ease,
+    transform 0.1s ease;
+}
+
+.paper-btn:active {
+  transform: scale(0.94);
+}
+
+.icon-key,
+.tw-key,
+.retro-checkbox,
+.paper-btn,
+.ribbon-btn,
+.preset-btn,
+.mode-rocker button {
+  cursor: pointer;
+}
+
+.icon-key:focus-visible,
+.tw-key:focus-visible,
+.retro-checkbox:focus-visible,
+.paper-btn:focus-visible,
+.ribbon-btn:focus-visible,
+.preset-btn:focus-visible,
+.mode-rocker button:focus-visible {
+  outline: 2px solid var(--lcd-amber);
+  outline-offset: 2px;
+}
+
+/* =========================================
    COMPACT 220×220 SIZING
    Window is 220×220 — everything compresses.
    Grid: 18px lines, one line per task.

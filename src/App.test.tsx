@@ -98,6 +98,37 @@ describe("App (integration)", () => {
     expect(minimize).toHaveBeenCalledTimes(1);
   });
 
+  it("rolls checked rows up when LOG syncs them", async () => {
+    localStorage.setItem("timekeeper.notion.apiKey", "test-key");
+    localStorage.setItem("timekeeper.notion.databaseId", "test-db");
+    invoke.mockImplementation((cmd: string, args?: { tasks?: { taskId: string }[] }) => {
+      if (cmd === "notion_query_incomplete") return Promise.resolve({ results: [] });
+      if (cmd === "notion_log_batch") {
+        return Promise.resolve((args?.tasks ?? []).map((t) => ({ taskId: t.taskId, ok: true })));
+      }
+      return Promise.reject(new Error("unexpected"));
+    });
+    render(<App />);
+
+    fireEvent.change(screen.getByTestId("paper-input"), {
+      target: { value: "- [x] Done task" },
+    });
+    fireEvent.click(screen.getByTestId("key-load"));
+    fireEvent.click(screen.getByTestId("key-log"));
+
+    // rows get the roll-up class before being removed
+    await waitFor(() => {
+      expect(document.querySelector(".task-row.is-logging")).toBeTruthy();
+    });
+
+    await waitFor(
+      () => {
+        expect(screen.queryByText("Done task")).toBeNull();
+      },
+      { timeout: 2000 }
+    );
+  });
+
   it("calls the Notion batch sync on LOG with the checked tasks", async () => {
     localStorage.setItem("timekeeper.notion.apiKey", "test-key");
     localStorage.setItem("timekeeper.notion.databaseId", "test-db");

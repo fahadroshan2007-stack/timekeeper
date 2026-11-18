@@ -13,6 +13,7 @@ interface PaperProps {
   onEdit: () => void;
   onRefresh: () => void;
   onQuickAdd: (title: string) => void;
+  loggingIds?: Set<string>;
 }
 
 export default function Paper({
@@ -27,6 +28,7 @@ export default function Paper({
   onEdit,
   onRefresh,
   onQuickAdd,
+  loggingIds,
 }: PaperProps) {
   const [quickAdd, setQuickAdd] = useState("");
   const [refreshing, setRefreshing] = useState(false);
@@ -106,7 +108,7 @@ export default function Paper({
                   data-active={String(activeTaskId === task.localId)}
                   className={`task-row ${task.isChecked ? "is-checked" : ""} ${
                     activeTaskId === task.localId ? "is-active" : ""
-                  }`}
+                  } ${loggingIds?.has(task.localId) ? "is-logging" : ""}`}
                 >
                   <button
                     type="button"

@@ -30,6 +30,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [logging, setLogging] = useState(false);
+  const [loggingIds, setLoggingIds] = useState<Set<string>>(new Set());
   const [mode, setMode] = useState<TimekeeperMode>("timer");
   const [timerPreset, setTimerPreset] = useState(25);
   const [theme, setTheme] = useState<"espresso" | "late">(() =>
@@ -167,7 +168,12 @@ export default function App() {
       const results = await runBatchSync({ apiKey, databaseId, tasks: checked });
       const okIds = results.filter((r) => r.ok).map((r) => r.taskId);
       const failed = results.filter((r) => !r.ok);
-      for (const id of okIds) removeTask(id);
+      // Roll the synced rows up before removing them from the paper.
+      setLoggingIds(new Set(okIds));
+      window.setTimeout(() => {
+        for (const id of okIds) removeTask(id);
+        setLoggingIds(new Set());
+      }, 300);
       if (failed.length > 0) {
         const first = failed[0];
         showToast(`SYNC FAILED ×${failed.length} — KEPT ON PAPER`);
@@ -216,6 +222,7 @@ export default function App() {
         onEdit={() => setShowInput((v) => !v)}
         onRefresh={() => refreshFromNotion(apiKey, databaseId, true)}
         onQuickAdd={handleQuickAdd}
+        loggingIds={loggingIds}
       />
 
       <Roller />
