@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TimeKeeper — Typewriter Widget Mockup</title>
+<style>
+  :root { font-family: "Courier New", ui-monospace, monospace; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: radial-gradient(ellipse at top, #2b2b3a, #14141c 70%);
+    display: flex; align-items: center; justify-content: center; gap: 40px; padding: 40px;
+    color: #eee;
+  }
+  .side { max-width: 300px; font-size: 14px; line-height: 1.6; }
+  .side h2 { margin: 0 0 8px; font-size: 22px; }
+  .side h3 { margin: 18px 0 6px; font-size: 15px; color: #f5c518; }
+  .side p, .side li { margin: 4px 0; }
+  .window {
+    width: 420px; height: 560px; border-radius: 14px; overflow: hidden;
+    display: flex; flex-direction: column;
+    background: #fdf6e3;
+    box-shadow: 0 30px 80px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.08);
+    position: relative;
+  }
+  .paper {
+    flex: 1.4; background: #fdf6e3; position: relative; padding: 14px 16px;
+    border-bottom: 2px solid #d8c9a8;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .paper::before { /* roll */
+    content: ""; position: absolute; top: -8px; left: 0; right: 0; height: 10px; background: #e7d9be; border-radius: 999px;
+  }
+  .paper-head { font-size: 11px; letter-spacing: 2px; color: #8a7a5c; font-weight: bold; text-transform: uppercase; }
+  .task { font-size: 13px; color: #333; display: flex; align-items: center; gap: 8px; }
+  .task.checked { text-decoration: line-through; color: #999; }
+  .task .badge { background: #f5c518; color: #222; border-radius: 999px; font-size: 10px; padding: 1px 8px; font-weight: bold; }
+  .task .box { width: 14px; height: 14px; border: 2px solid #8a7a5c; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; color: #222; background: #fff; flex: none; }
+  .task.done .box { background: #222; color: #f5c518; border-color: #222; }
+  .chassis {
+    flex: 1; background: #1e293b; border-radius: 0 0 14px 14px; padding: 12px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .lcd { background: #000; border-radius: 6px; padding: 8px 10px; text-align: right; font-family: "Courier New", monospace; font-size: 26px; color: #4ade80; letter-spacing: 2px; }
+  .lcd-label { font-size: 9px; color: #64748b; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 2px; }
+  .keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .key { height: 34px; border-radius: 6px; background: #d6c7a1; box-shadow: 0 3px 0 #a89a76, 0 4px 8px rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; color: #222; }
+  .key.log { background: #b91c1c; color: #fff; box-shadow: 0 3px 0 #7f1d1d, 0 4px 8px rgba(0,0,0,.4); }
+  .controls { display: flex; gap: 8px; }
+  .keybtn { flex: 1; height: 34px; border-radius: 6px; background: #334155; color: #e2e8f0; border: none; font-weight: bold; font-size: 11px; }
+</style>
+</head>
+<body>
+  <div class="side">
+    <h2>Typewriter Focus Widget</h2>
+    <p>A frameless, transparent, always-on-top desktop widget — retro typewriter metaphor.</p>
+    <h3>Layout</h3>
+    <ul>
+      <li><strong>Paper</strong> (top): off-white sheet rolling out; holds parsed Markdown task list. Click task text to check off (animated strikethrough). Pill badge like <code>25m</code> appears next to a task after a session is saved.</li>
+      <li><strong>Chassis</strong> (bottom): dark body, tactile keys, small LCD display. Holds the Timekeeper.</li>
+    </ul>
+    <h3>Function</h3>
+    <ul>
+      <li>Paste Markdown task list → parsed into interactive checklist.</li>
+      <li>Timekeeper: Timer (Pomodoro, Start/Pause/Reset) or Stopwatch (count up).</li>
+      <li>On session end: prompt to save elapsed minutes to the active task; Discard option; &lt;15s auto-discards.</li>
+      <li>LOG key: batch-sync checked tasks to Notion (PATCH Status→Done / Time (Min) / Logged At; POST create for typed tasks).</li>
+      <li>Drag the chassis to move the floating widget.</li>
+    </ul>
+  </div>
+  <div class="window">
+    <div class="paper">
+      <div class="paper-head">Paper — Tasks</div>
+      <div class="task done"><span class="box">✓</span> Ship the widget v1 <span class="badge">25m</span></div>
+      <div class="task"><span class="box"></span> Review design doc</div>
+      <div class="task"><span class="box"></span> Write docs for the widget</div>
+    </div>
+    <div class="chassis">
+      <div>
+        <div class="lcd-label">Time — LCD</div>
+        <div class="lcd">25:00</div>
+      </div>
+      <div class="keys">
+        <div class="key">Start</div>
+        <div class="key">Pause</div>
+        <div class="key">Reset</div>
+      </div>
+      <div class="controls">
+        <div class="keybtn">Start</div>
+        <div class="keybtn">Pause</div>
+        <div class="keybtn">Reset</div>
+      </div>
+      <div style="display:flex;justify-content:flex-end">
+        <div class="key log">LOG</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
