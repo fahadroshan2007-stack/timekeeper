@@ -12,6 +12,10 @@ The widget looks like a retro typewriter sitting on your desktop: a sheet of pap
 - **Timekeeper**: toggle **Timer** (countdown, default 25:00) / **Stopwatch** (count up); Start / Pause / Resume / Reset / Stop. When a session ends, you are prompted to assign the tracked minutes to the active task; sessions under 15 seconds are discarded automatically.
 - **Pill badges**: accumulated minutes appear as a badge (e.g. `25m`) next to each task.
 
+## Download
+
+**[v0.1.0](https://github.com/fahadroshan2007-stack/timekeeper/releases/tag/v0.1.0)** — [`TimeKeeper_0.1.0_x64_en-US.msi`](https://github.com/fahadroshan2007-stack/timekeeper/releases/download/v0.1.0/TimeKeeper_0.1.0_x64_en-US.msi) (installer) or [`timekeeper.exe`](https://github.com/fahadroshan2007-stack/timekeeper/releases/download/v0.1.0/timekeeper.exe) (portable). Unsigned — SmartScreen: More info → Run anyway.
+
 ## License
 
 [MIT](LICENSE) — do whatever you like, just keep the notice.
