@@ -13,8 +13,8 @@
     "windows": [
       {
         "title": "TimeKeeper",
-        "width": 356,
-        "height": 540,
+        "width": 220,
+        "height": 220,
         "decorations": false,
         "transparent": true,
         "alwaysOnTop": true

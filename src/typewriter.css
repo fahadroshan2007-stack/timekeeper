@@ -904,6 +904,279 @@ body {
 }
 
 /* =========================================
+   COMPACT 220×220 SIZING
+   Window is 220×220 — everything compresses.
+   ========================================= */
+.typewriter-widget ul,
+.typewriter-widget p,
+.typewriter-widget form {
+  margin: 0;
+  padding: 0;
+}
+
+.task-list {
+  margin: 0;
+  padding: 0;
+}
+
+.paper-serrated-top {
+  height: 6px;
+  background-size: 8px 6px;
+}
+
+.paper-sheet {
+  flex: 1.15;
+  padding: 6px 9px 7px;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 17px,
+    var(--paper-line) 17px,
+    var(--paper-line) 18px
+  );
+}
+
+.paper-header {
+  padding-bottom: 4px;
+  margin-bottom: 4px;
+  border-bottom-width: 1px;
+}
+
+.pulse-dot {
+  width: 5px;
+  height: 5px;
+}
+
+.paper-title {
+  font-size: 7.5px;
+  letter-spacing: 0.08em;
+}
+
+.paper-btn {
+  font-size: 8px;
+  padding: 2px 5px;
+}
+
+.task-row {
+  gap: 5px;
+  padding: 2px 3px;
+}
+
+.retro-checkbox {
+  width: 11px;
+  height: 11px;
+  margin-top: 1px;
+  font-size: 8px;
+  border-width: 1px;
+}
+
+.task-text-wrapper {
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.strike-line {
+  height: 1.2px;
+}
+
+.time-pill {
+  font-size: 8px;
+  padding: 0 4px;
+}
+
+.empty-paper {
+  padding: 12px 6px;
+  font-size: 9px;
+}
+
+.paper-textarea {
+  font-size: 10px;
+  line-height: 1.4;
+  padding: 6px;
+}
+
+.quick-add {
+  margin-top: 4px;
+  padding-top: 3px;
+}
+
+.quick-add-plus,
+.quick-add-input {
+  font-size: 9px;
+}
+
+.roller-assembly {
+  height: 13px;
+  margin-top: -2px;
+}
+
+.carriage-knob {
+  width: 9px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+.carriage-stem {
+  width: 4px;
+  height: 5px;
+}
+
+.platen-roller {
+  height: 11px;
+  border-radius: 3px;
+}
+
+.paper-bail-rod {
+  height: 2px;
+  padding: 0 18px;
+}
+
+.pinch-wheel {
+  width: 8px;
+  height: 4px;
+}
+
+.typewriter-chassis {
+  padding: 5px 7px 7px;
+  border-radius: 6px 6px 14px 14px;
+  border-bottom-width: 2px;
+}
+
+.chassis-header {
+  margin-bottom: 4px;
+}
+
+.brand-plate {
+  font-size: 6px;
+  padding: 1px 5px;
+  letter-spacing: 0.1em;
+}
+
+.active-focus {
+  max-width: 64px;
+  font-size: 6.5px;
+}
+
+.icon-key {
+  width: 14px;
+  height: 14px;
+  font-size: 9px;
+  border-radius: 3px;
+}
+
+.lcd-deck {
+  padding: 4px 5px;
+  margin-bottom: 5px;
+  border-radius: 6px;
+}
+
+.lcd-row {
+  gap: 4px;
+}
+
+.lcd-screen {
+  padding: 3px 6px;
+  border-radius: 4px;
+}
+
+.lcd-meta {
+  margin-bottom: 2px;
+}
+
+.lcd-mode-label,
+.lcd-badge {
+  font-size: 6px;
+}
+
+.lcd-digits {
+  font-size: 16px;
+}
+
+.mode-rocker {
+  border-radius: 4px;
+  padding: 1px;
+  gap: 1px;
+}
+
+.mode-rocker button {
+  font-size: 6.5px;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+.preset-row {
+  display: none;
+}
+
+.key-row {
+  gap: 4px;
+}
+
+.tw-key {
+  border-radius: 6px;
+  padding: 6px 2px 5px;
+  font-size: 8px;
+}
+
+.tw-key-cream {
+  box-shadow:
+    0 2px 0 var(--key-cream-shadow),
+    0 3px 4px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 #ffffff;
+}
+
+.tw-key-red {
+  box-shadow:
+    0 2px 0 var(--key-red-shadow),
+    0 3px 4px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.tw-key-dark {
+  box-shadow:
+    0 2px 0 var(--key-dark-shadow),
+    0 3px 4px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+.tw-key-cream:active,
+.tw-key-red:active,
+.tw-key-dark:active {
+  transform: translateY(2px);
+}
+
+.session-ribbon {
+  padding: 5px 7px;
+  margin-bottom: 4px;
+}
+
+.ribbon-headline,
+.ribbon-select {
+  font-size: 9px;
+}
+
+.ribbon-btn {
+  font-size: 8px;
+  padding: 3px 7px;
+}
+
+.stamp-toast {
+  font-size: 8px;
+  padding: 2px 6px;
+  top: 5px;
+  right: 5px;
+}
+
+.settings-panel {
+  padding: 8px 10px;
+}
+
+.settings-input {
+  padding: 4px 6px;
+  font-size: 10px;
+}
+
+/* =========================================
    SETTINGS DRAWER (modal re-skin)
    ========================================= */
 .settings-overlay {
