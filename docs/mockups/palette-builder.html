@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TimeKeeper — Palette Mix &amp; Match Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=JetBrains+Mono:wght@500;700&family=Space+Mono:wght@400;700&family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #101010; color: #d7d2c8; font-family: Inter, system-ui, sans-serif;
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 20px 18px; gap: 14px;
+  }
+  h1 { font-size: 16px; font-weight: 600; letter-spacing: .02em; color: #eee7da; }
+  .sub { font-size: 11px; color: #8a8378; margin-top: -8px; }
+  .stage { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+
+  /* ---------- preview ---------- */
+  .preview-wrap {
+    width: 300px; min-height: 400px; border-radius: 18px; padding: 22px 0;
+    background: radial-gradient(circle at 50% 30%, #2a2725, #151312);
+    display: flex; align-items: flex-start; justify-content: center;
+    border: 1px solid #262220;
+  }
+
+  .w {
+    --paper-bg: #faf6ee; --paper-line: #eae3d2; --paper-ink: #24201e; --mut: #8c8275;
+    --red: #d94e34; --red-soft: rgba(217,78,52,.12);
+    --chitop: #36312f; --chbody: #282423; --chbot: #1f1c1b; --ch2: #12100f;
+    --plate: #d6cbb8; --panel: #1e1b1a; --panel2: #141211; --pborder: #47413d;
+    --lcd-bg: #111613; --lcd-acc: #5df29a; --lcd-lab: rgba(93,242,154,.75);
+    --amber: #f5b041;
+    --cream: #f3ece0; --creamtop: #faf5ec; --creamsh: #b8ae9e; --creambrd: #b5aca0;
+    --redkey: #d94e34; --redkeytop: #e85d43; --redkeysh: #8e2b19; --redkeybrd: #f38a76;
+    --darkkey: #3b3634; --darkkeytop: #47413f; --darkkeysh: #171413; --darkkeybrd: #635b57; --darkkeytxt: #e6dfd3;
+    width: 220px; height: 220px; position: relative;
+    filter: drop-shadow(0 16px 22px rgba(0,0,0,.55));
+  }
+  .w .serrated { position: absolute; top: 0; left: 0; right: 0; height: 6px;
+    background: linear-gradient(135deg, transparent 50%, var(--paper-bg) 50%),
+                linear-gradient(225deg, transparent 50%, var(--paper-bg) 50%);
+    background-size: 8px 6px; background-repeat: repeat-x; z-index: 2; }
+  .paper { position: absolute; top: 6px; left: 0; right: 0; height: 100px; overflow: hidden;
+    background: var(--paper-bg) repeating-linear-gradient(to bottom, transparent 0 17px, var(--paper-line) 17px 18px);
+    color: var(--paper-ink); padding: 7px 9px; display: flex; flex-direction: column;
+    border-left: 1px solid rgba(0,0,0,.07); border-right: 1px solid rgba(0,0,0,.07); z-index: 1; }
+  .hdr { display:flex; justify-content:space-between; align-items:center; border-bottom: 1.5px dashed var(--mut); border-color: color-mix(in srgb, var(--mut) 55%, transparent); padding-bottom:3px; margin-bottom:4px; }
+  .hdr-l { display:flex; align-items:center; gap:5px; }
+  .dot { width:5px; height:5px; border-radius:99px; background:#10b981; box-shadow:0 0 5px rgba(16,185,129,.7); }
+  .hdr-title { font-family:'Space Mono'; font-size:7px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color: var(--paper-ink); opacity:.85; }
+  .btn { font-family:'Courier Prime'; font-size:7px; color: var(--paper-ink); opacity:.75; border:1px solid color-mix(in srgb, var(--mut) 65%, transparent); border-radius:3px; padding:1px 5px; background:transparent; }
+  .task { display:flex; align-items:center; gap:5px; padding:1px 2px; border-radius:3px; }
+  .task.active { background: var(--red-soft); }
+  .task.active .ttl { text-decoration: underline; text-decoration-color: var(--red); text-decoration-thickness: 1.2px; text-underline-offset: 2px; font-weight:700; }
+  .cb { width:9px; height:9px; border:1px solid var(--mut); border-radius:1px; display:flex; align-items:center; justify-content:center; font-size:7px; color:#fffdf9; flex:none; background: color-mix(in srgb, var(--paper-bg) 60%, #fff); }
+  .task.done .cb { background: var(--red); border-color: var(--red); }
+  .ttl { font-family:'Courier Prime'; font-size:7.5px; flex:1; }
+  .task.done .ttl { opacity:.45; text-decoration: line-through; text-decoration-color: var(--red); }
+  .pill { font-family:'JetBrains Mono'; font-size:6px; color:#8a5a00; background:#fce9c0; border:1px solid #f0d49b; border-radius:99px; padding:0 4px; }
+  .roller { position:absolute; top:102px; left:0; right:0; height:11px; display:flex; align-items:center; justify-content:center; z-index:1; }
+  .knob { width:7px; height:12px; border-radius:2px; border:1px solid var(--ch2); background: repeating-linear-gradient(to bottom, #e2dfd9 0 1.5px, #57524b 1.5px 3px); }
+  .stem { width:4px; height:5px; background: linear-gradient(to bottom, #d6d2c9, #6e685f); }
+  .roll { flex:1; max-width:88%; height:11px; border-radius:3px; background: linear-gradient(to bottom, #3a3634 0%, #1f1c1b 38%, #12100f 75%, #2b2725 100%); display:flex; align-items:center; }
+  .rod { width:100%; height:2px; background: linear-gradient(to bottom, #f4f2ed, #8c867c); display:flex; justify-content:space-between; padding:0 22px; }
+  .pinch { width:8px; height:4px; background:#181615; border:1px solid #6e685f; border-radius:1px; }
+  .chassis { position:absolute; top:110px; left:0; right:0; bottom:0; border-radius:6px 6px 14px 14px;
+    background: linear-gradient(180deg, var(--chitop) 0%, var(--chbody) 18%, var(--chbot) 100%);
+    border-top:1px solid rgba(255,255,255,.14); border-bottom:3px solid var(--ch2);
+    padding:5px 7px; display:flex; flex-direction:column; box-shadow: inset 0 1px 0 rgba(255,255,255,.15); z-index:1; }
+  .ch-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:3px; }
+  .plate { font-family:'Space Mono'; font-size:6px; letter-spacing:.12em; color: var(--plate); background: linear-gradient(180deg, var(--panel), var(--panel2)); border:1px solid var(--pborder); border-radius:2px; padding:1px 5px; }
+  .focus { font-family:'JetBrains Mono'; font-size:6.5px; font-weight:700; color: var(--amber); }
+  .lcd { background: var(--lcd-bg); border:1.5px solid color-mix(in srgb, var(--lcd-bg) 70%, #3c332f); border-radius:4px; box-shadow: inset 0 0 8px rgba(0,0,0,.9); padding:3px 6px; display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+  .lcd small { display:block; font-family:'JetBrains Mono'; font-size:5px; color: var(--lcd-lab); letter-spacing:.1em; }
+  .digits { font-family:'JetBrains Mono'; font-weight:700; font-size:16px; line-height:1; color: var(--lcd-acc); text-shadow: 0 0 8px var(--lcd-acc); }
+  .rocker { display:flex; flex-direction:column; gap:2px; background: color-mix(in srgb, var(--lcd-bg) 40%, #000); border:1px solid color-mix(in srgb, var(--ch2) 70%, transparent); border-radius:4px; padding:2px; }
+  .rocker span { font-family:'Space Mono'; font-size:6px; padding:1px 5px; border-radius:3px; color:#857d73; }
+  .rocker .on { background: color-mix(in srgb, var(--panel) 60%, #000); color:#faf6ee; }
+  .keys { display:grid; grid-template-columns:1fr 1fr 1fr .72fr; gap:4px; margin-top:auto; }
+  .key { border:none; border-radius:6px; padding:6px 2px 5px; font-family:'Space Mono'; font-size:8px; font-weight:700; }
+  .cream { background: linear-gradient(180deg, var(--creamtop), var(--cream)); color:#262220; border:1px solid var(--creambrd); box-shadow: 0 2px 0 var(--creamsh); }
+  .redk { background: linear-gradient(180deg, var(--redkeytop), var(--redkey)); color:#fffdf9; border:1px solid var(--redkeybrd); box-shadow: 0 2px 0 var(--redkeysh); }
+  .darkk { background: linear-gradient(180deg, var(--darkkeytop), var(--darkkey)); color: var(--darkkeytxt); border:1px solid var(--darkkeybrd); box-shadow: 0 2px 0 var(--darkkeysh); }
+
+  /* ---------- control panel ---------- */
+  .panel {
+    width: 340px; max-height: 620px; overflow-y: auto;
+    background: #181715; border: 1px solid #2a2725; border-radius: 14px; padding: 14px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .panel::-webkit-scrollbar { width: 6px; }
+  .panel::-webkit-scrollbar-thumb { background: #33302c; border-radius: 3px; }
+  .group-title { font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #a89e90; margin-bottom: 5px; }
+  .ctrl-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 3px 0; }
+  .ctrl-name { font-size: 11px; color: #c9c2b4; min-width: 86px; }
+  .swatches { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+  .swatch { width: 20px; height: 20px; border-radius: 5px; border: 1.5px solid rgba(255,255,255,.14); cursor: pointer; padding: 0; transition: transform .1s ease; }
+  .swatch:hover { transform: scale(1.18); border-color: #fff; }
+  .swatch.active { outline: 2px solid #ffd23e; outline-offset: 1px; }
+  input[type="color"] { width: 26px; height: 20px; border: none; background: none; cursor: pointer; padding: 0; border-radius: 4px; }
+
+  .toolbar { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tbtn { font-family: 'Courier Prime'; font-size: 10px; font-weight: 700; padding: 5px 10px; border-radius: 6px; border: 1px solid #3a3634; background: #211f1d; color: #d7d2c8; cursor: pointer; }
+  .tbtn:hover { background: #2b2826; }
+  .tbtn.primary { background: #d94e34; border-color: #d94e34; color: #fff; }
+  .tbtn.primary:hover { background: #e85d43; }
+  .presets { display: flex; gap: 4px; flex-wrap: wrap; }
+  .preset { font-family: 'Space Mono'; font-size: 9px; padding: 4px 7px; border-radius: 99px; border: 1px solid #3a3634; background: transparent; color: #a89e90; cursor: pointer; }
+  .preset:hover { color: #faf6ee; border-color: #faf6ee; }
+  .cssout {
+    width: 100%; height: 120px; resize: vertical;
+    background: #101010; color: #5df29a; border: 1px solid #2a2725; border-radius: 8px;
+    font-family: 'JetBrains Mono', monospace; font-size: 9.5px; padding: 8px; line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+<h1>TimeKeeper — Palette Mix &amp; Match Studio</h1>
+<p class="sub">Every colour independently adjustable · swatches are curated, the pipette is not · COPY CSS gives you the :root block for typewriter.css</p>
+
+<div class="stage">
+  <div class="preview-wrap">
+    <div class="w" id="w">
+      <div class="serrated"></div>
+      <div class="paper">
+        <div class="hdr"><span class="hdr-l"><span class="dot"></span><span class="hdr-title">Daily Plan</span></span><button class="btn">EDIT .MD</button></div>
+        <div class="task active"><span class="cb"></span><span class="ttl">Study for exam</span></div>
+        <div class="task done"><span class="cb">✓</span><span class="ttl">Read 20 pages</span><span class="pill">25m</span></div>
+        <div class="task"><span class="cb"></span><span class="ttl">Practice problems</span></div>
+      </div>
+      <div class="roller"><span class="knob"></span><span class="stem"></span><div class="roll"><div class="rod"><span class="pinch"></span><span class="pinch"></span><span class="pinch"></span></div></div><span class="stem"></span><span class="knob"></span></div>
+      <div class="chassis">
+        <div class="ch-top"><span class="plate">TIMEKEEPER // MK-I</span><span class="focus">FOCUS: STUDY…</span></div>
+        <div class="lcd"><span><small>TIMER // READY · 25M</small><span class="digits">25:00</span></span><span class="rocker"><span class="on">TMR</span><span>SW</span></span></div>
+        <div class="keys"><button class="key cream">START</button><button class="key cream">RESET</button><button class="key redk">LOG</button><button class="key darkk">•••</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="toolbar">
+      <button class="tbtn" id="btn-reset">↺ Reset</button>
+      <button class="tbtn" id="btn-random">⚂ Randomize</button>
+      <button class="tbtn primary" id="btn-copy">⧉ Copy CSS</button>
+    </div>
+
+    <div class="presets" id="preset-row"></div>
+
+    <div id="controls"></div>
+
+    <textarea class="cssout" id="css-out" readonly spellcheck="false" aria-label="CSS output"></textarea>
+  </div>
+</div>
+
+<script>
+const DEFAULTS = {
+  paperBg: '#faf6ee', paperLine: '#eae3d2', paperInk: '#24201e', mut: '#8c8275',
+  red: '#d94e34',
+  chTop: '#36312f', chBody: '#282423', chBot: '#1f1c1b', ch2: '#12100f',
+  plate: '#d6cbb8', panel: '#1e1b1a', panel2: '#141211', pborder: '#47413d',
+  lcdBg: '#111613', lcdAcc: '#5df29a', lcdLab: '#5df29a99',
+  amber: '#f5b041',
+  cream: '#f3ece0', creamTop: '#faf5ec', creamSh: '#b8ae9e', creamBrd: '#b5aca0',
+  redKey: '#d94e34', redKeyTop: '#e85d43', redKeySh: '#8e2b19', redKeyBrd: '#f38a76',
+  darkKey: '#3b3634', darkKeyTop: '#47413f', darkKeySh: '#171413', darkKeyBrd: '#635b57', darkKeyTxt: '#e6dfd3',
+};
+
+const GROUPS = [
+  { title: 'Paper', rows: [
+    { key: 'paperBg',   name: 'Sheet',      sw: ['#faf6ee', '#f6f1e4', '#efe6d4', '#f2ead8', '#e7e2d1', '#22201d'] },
+    { key: 'paperLine', name: 'Ruled line', sw: ['#eae3d2', '#ddd5c4', '#d8cdb8', '#e0d8c8', '#c9c2b2', '#33302c'] },
+    { key: 'paperInk',  name: 'Ink',        sw: ['#24201e', '#2c2118', '#1a1d24', '#33302c', '#f0ead9'] },
+    { key: 'mut',       name: 'Muted',      sw: ['#8c8275', '#a3988a', '#7d7264', '#b9ae9c', '#6a6256'] },
+  ]},
+  { title: 'Ribbon accent', rows: [
+    { key: 'red', name: 'Ribbon / LOG', sw: ['#d94e34', '#c03e26', '#b03a1e', '#e4572e', '#a83716', '#8a2b1d'] },
+  ]},
+  { title: 'Chassis', rows: [
+    { key: 'chTop',  name: 'Shoulder', sw: ['#36312f', '#40452e', '#432826', '#2c3547', '#e9e2d2', '#3a3f34', '#4a4038'] },
+    { key: 'chBody', name: 'Body',     sw: ['#282423', '#333821', '#351f1e', '#222a3a', '#d9d1c0', '#2b2f33', '#3d3428'] },
+    { key: 'chBot',  name: 'Lower',    sw: ['#1f1c1b', '#242819', '#251615', '#171d29', '#b8af9d', '#1e2226', '#2b241c'] },
+    { key: 'ch2',    name: 'Edge',     sw: ['#12100f', '#141710', '#150c0b', '#0d111a', '#8d8574', '#111418', '#1a1611'] },
+  ]},
+  { title: 'Brand plate', rows: [
+    { key: 'plate',   name: 'Text',   sw: ['#d6cbb8', '#dcd8c3', '#e3cdc0', '#cfd6e0', '#3c362c', '#f0ead9'] },
+    { key: 'panel',   name: 'Panel',  sw: ['#1e1b1a', '#2a2d1c', '#2c1f1c', '#1b2230', '#d9d1c0', '#1c1f26'] },
+    { key: 'panel2',  name: 'Panel 2',sw: ['#141211', '#1e2113', '#201412', '#131926', '#c6bdaa', '#12151c'] },
+    { key: 'pborder', name: 'Border', sw: ['#47413d', '#4d5238', '#57403a', '#3c4763', '#a89f8c', '#2f333d'] },
+  ]},
+  { title: 'LCD', rows: [
+    { key: 'lcdBg',  name: 'Glass',  sw: ['#111613', '#0d1f14', '#161309', '#101720', '#1a0d0d', '#ffffff'] },
+    { key: 'lcdAcc', name: 'Digits', sw: ['#5df29a', '#f5b041', '#7fd8a0', '#8ad4ff', '#ff8a7a', '#141414'] },
+    { key: 'lcdLab', name: 'Label',  sw: ['#5df29a99', '#f5b04199', '#7fd8a099', '#8ad4ff99', '#ff8a7a99', '#14141499'] },
+  ]},
+  { title: 'Amber accent', rows: [
+    { key: 'amber', name: 'Focus / badge', sw: ['#f5b041', '#ffd23e', '#e8a74a', '#c9a959', '#b4530a', '#e6b800'] },
+  ]},
+  { title: 'Cream keys (START/RESET)', rows: [
+    { key: 'creamTop', name: 'Top face', sw: ['#faf5ec', '#f6f0e2', '#fbf7ef', '#efe6d4', '#e9e2d2'] },
+    { key: 'cream',    name: 'Face',     sw: ['#f3ece0', '#ede5d5', '#f0ead9', '#e4dbc8', '#d9d1c0'] },
+    { key: 'creamSh',  name: 'Edge',     sw: ['#b8ae9e', '#a89a86', '#b0a491', '#c9c2b2', '#8d8574'] },
+    { key: 'creamBrd', name: 'Border',   sw: ['#b5aca0', '#a3988a', '#c9c2b2', '#9c9284', '#7d7264'] },
+  ]},
+  { title: 'LOG key', rows: [
+    { key: 'redKeyTop', name: 'Top face', sw: ['#e85d43', '#f06548', '#e4572e', '#d94e34', '#c03e26'] },
+    { key: 'redKey',    name: 'Face',     sw: ['#d94e34', '#c03e26', '#b03a1e', '#a83716', '#8e2b19'] },
+    { key: 'redKeySh',  name: 'Edge',     sw: ['#8e2b19', '#6e1f10', '#572012', '#a83716', '#401207'] },
+    { key: 'redKeyBrd', name: 'Border',   sw: ['#f38a76', '#ff8a7a', '#f0a090', '#e4572e', '#c96a5c'] },
+  ]},
+  { title: 'Dark key (•••)', rows: [
+    { key: 'darkKeyTop', name: 'Top face', sw: ['#47413f', '#2c2a28', '#3a3835', '#524c49', '#1e1b1a'] },
+    { key: 'darkKey',    name: 'Face',     sw: ['#3b3634', '#242220', '#2c2a28', '#453f3c', '#262220'] },
+    { key: 'darkKeySh',  name: 'Edge',     sw: ['#171413', '#0f0d0c', '#141210', '#0a0a0a', '#050505'] },
+    { key: 'darkKeyBrd', name: 'Border',   sw: ['#635b57', '#4d4a47', '#524c49', '#6e685f', '#383430'] },
+  ]},
+];
+
+const PRESETS = {
+  'Olivetti Espresso (current)': { ...DEFAULTS },
+  'Lettera Olive': { ...DEFAULTS, chTop: '#40452e', chBody: '#333821', chBot: '#242819', ch2: '#141710', panel: '#2a2d1c', panel2: '#1e2113', pborder: '#4d5238', plate: '#dcd8c3' },
+  'Oxblood':       { ...DEFAULTS, chTop: '#432826', chBody: '#351f1e', chBot: '#251615', ch2: '#150c0b', panel: '#2c1f1c', panel2: '#201412', pborder: '#57403a', plate: '#e3cdc0' },
+  'Slate Navy + Amber LCD': { ...DEFAULTS, chTop: '#2c3547', chBody: '#222a3a', chBot: '#171d29', ch2: '#0d111a', panel: '#1b2230', panel2: '#131926', pborder: '#3c4763', plate: '#cfd6e0', lcdBg: '#161309', lcdAcc: '#f5b041', lcdLab: '#f5b04199', amber: '#f5b041' },
+  'Ivory Smith-Corona': { ...DEFAULTS, chTop: '#e9e2d2', chBody: '#d9d1c0', chBot: '#b8af9d', ch2: '#8d8574', paperBg: '#f6f1e4', paperLine: '#ddd5c4', plate: '#3c362c', panel: '#d9d1c0', panel2: '#c6bdaa', pborder: '#a89f8c', amber: '#b4530a' },
+  'Forest Noir':    { ...DEFAULTS, chTop: '#1f2b23', chBody: '#182018', chBot: '#10150f', ch2: '#080c08', panel: '#14201a', panel2: '#0e1611', pborder: '#2c3a30', plate: '#b8d4c2', lcdBg: '#071a10', lcdAcc: '#3fdc74', lcdLab: '#3fdc7499' },
+  'Mono Paper':     { ...DEFAULTS, paperBg: '#f2f0ec', paperLine: '#ddd9d0', paperInk: '#1c1c1c', mut: '#9a968e', chTop: '#2e2e2e', chBody: '#232323', chBot: '#181818', ch2: '#0c0c0c', red: '#c92a1d', redKey: '#c92a1d', redKeyTop: '#de4436' },
+};
+
+const state = { ...DEFAULTS };
+const w = document.getElementById('w');
+const out = document.getElementById('css-out');
+
+const VARNAME = {
+  paperBg: '--paper-bg', paperLine: '--paper-line', paperInk: '--paper-ink', mut: '--mut', red: '--red',
+  chTop: '--chitop', chBody: '--chbody', chBot: '--chbot', ch2: '--ch2',
+  plate: '--plate', panel: '--panel', panel2: '--panel2', pborder: '--pborder',
+  lcdBg: '--lcd-bg', lcdAcc: '--lcd-acc', lcdLab: '--lcd-lab',
+  amber: '--amber',
+  cream: '--cream', creamTop: '--creamtop', creamSh: '--creamsh', creamBrd: '--creambrd',
+  redKey: '--redkey', redKeyTop: '--redkeytop', redKeySh: '--redkeysh', redKeyBrd: '--redkeybrd',
+  darkKey: '--darkkey', darkKeyTop: '--darkkeytop', darkKeySh: '--darkkeysh', darkKeyBrd: '--darkkeybrd', darkKeyTxt: '--darkkeytxt',
+};
+
+function apply() {
+  for (const [k, v] of Object.entries(state)) w.style.setProperty(VARNAME[k], v);
+  out.value = ':root {\n' + Object.entries(state).map(([k, v]) => `  ${VARNAME[k]}: ${v};`).join('\n') + '\n}';
+  document.querySelectorAll('.swatch').forEach((el) => {
+    el.classList.toggle('active', el.dataset.value.toLowerCase() === String(state[el.dataset.key]).toLowerCase());
+  });
+}
+
+function buildControls() {
+  const mount = document.getElementById('controls');
+  for (const group of GROUPS) {
+    const g = document.createElement('div');
+    g.innerHTML = `<div class="group-title">${group.title}</div>`;
+    for (const row of group.rows) {
+      const line = document.createElement('div');
+      line.className = 'ctrl-row';
+      const sw = row.sw.map((c) => `<button class="swatch" data-key="${row.key}" data-value="${c}" style="background:${c}" aria-label="${row.name} ${c}"></button>`).join('');
+      line.innerHTML = `<span class="ctrl-name">${row.name}</span><span class="swatches">${sw}<input type="color" data-key="${row.key}" value="${state[row.key]}" aria-label="Custom ${row.name}"></span>`;
+      g.appendChild(line);
+    }
+    mount.appendChild(g);
+  }
+  mount.addEventListener('click', (e) => {
+    const btn = e.target.closest('.swatch');
+    if (!btn) return;
+    state[btn.dataset.key] = btn.dataset.value;
+    apply();
+  });
+  mount.addEventListener('input', (e) => {
+    if (e.target.type !== 'color') return;
+    state[e.target.dataset.key] = e.target.value;
+    apply();
+  });
+}
+
+function buildPresets() {
+  const row = document.getElementById('preset-row');
+  for (const [name, patch] of Object.entries(PRESETS)) {
+    const b = document.createElement('button');
+    b.className = 'preset';
+    b.textContent = name;
+    b.addEventListener('click', () => { Object.assign(state, patch); apply(); });
+    row.appendChild(b);
+  }
+}
+
+document.getElementById('btn-reset').addEventListener('click', () => { Object.assign(state, DEFAULTS); apply(); });
+document.getElementById('btn-random').addEventListener('click', () => {
+  const pool = GROUPS.flatMap((g) => g.rows);
+  for (const row of pool) {
+    state[row.key] = row.sw[Math.floor(Math.random() * row.sw.length)];
+  }
+  apply();
+});
+document.getElementById('btn-copy').addEventListener('click', async () => {
+  out.select();
+  try { await navigator.clipboard.writeText(out.value); } catch { document.execCommand('copy'); }
+  const b = document.getElementById('btn-copy');
+  const old = b.textContent;
+  b.textContent = '✓ Copied';
+  setTimeout(() => (b.textContent = old), 1200);
+});
+
+buildControls();
+buildPresets();
+apply();
+</script>
+</body>
+</html>
