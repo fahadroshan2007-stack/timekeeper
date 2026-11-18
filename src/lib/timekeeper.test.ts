@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { Timekeeper } from "./timekeeper";
 describe("Timekeeper", () => {
   it("returns a countdown timer elapsed within bounds on stop", () => {
@@ -16,6 +16,38 @@ describe("Timekeeper", () => {
     const elapsed = t.stop();
     expect(elapsed).toBeLessThanOrEqual(2);
     expect(t.getStatus()).toBe("idle");
+  });
+
+  describe("start() guard", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("does not reset a running session when start is called again", () => {
+      vi.useFakeTimers();
+      const t = new Timekeeper("timer", 60);
+      t.start();
+      vi.advanceTimersByTime(10000);
+
+      const elapsedBefore = t.getElapsedSeconds();
+      t.start();
+
+      expect(t.getElapsedSeconds()).toBeGreaterThanOrEqual(elapsedBefore);
+      expect(t.getStatus()).toBe("running");
+    });
+
+    it("does not replace a paused session with a fresh one", () => {
+      vi.useFakeTimers();
+      const t = new Timekeeper("timer", 60);
+      t.start();
+      vi.advanceTimersByTime(5000);
+      t.pause();
+
+      t.start();
+
+      expect(t.getStatus()).toBe("paused");
+      expect(t.getElapsedSeconds()).toBeGreaterThan(0);
+    });
   });
 
   it("accumulates elapsed seconds for a stopwatch session", () => {

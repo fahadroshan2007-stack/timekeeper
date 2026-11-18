@@ -20,6 +20,9 @@ export class Timekeeper {
   }
 
   start(): void {
+    // Re-clicking START mid-session (or from paused) must not reset the clock.
+    if (this.status !== "idle") return;
+
     if (this.mode === "timer") {
       this.endsAtMs = Date.now() + this.initialSeconds * 1000;
     } else {
