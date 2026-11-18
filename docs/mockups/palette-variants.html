@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TimeKeeper — Colour Palette Mockups</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=JetBrains+Mono:wght@500;700&family=Space+Mono:wght@400;700&family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #141414;
+    font-family: Inter, system-ui, sans-serif;
+    color: #d7d2c8;
+    padding: 26px 22px 36px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+  h1 { font-size: 16px; font-weight: 600; letter-spacing: 0.02em; color: #eee7da; }
+  .sub { font-size: 11.5px; color: #8a8378; margin-top: -10px; }
+  .row { display: flex; gap: 26px; flex-wrap: wrap; justify-content: center; }
+  .variant { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .vlabel { font-size: 11px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: #d8d2c6; }
+  .vnote { font-size: 10px; color: #7d7669; width: 210px; text-align: center; line-height: 1.45; }
+  .swatches { display: flex; gap: 6px; margin-top: 2px; }
+  .sw { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(255,255,255,.25); }
+
+  /* ============ SHARED WIDGET (CSS variables per palette) ============ */
+  .w {
+    --paper-bg: #faf6ee; --paper-line: #eae3d2; --paper-ink: #24201e; --paper-mut: #8c8275;
+    --red: #d94e34; --red-soft: rgba(217,78,52,.12);
+    --chitop: #36312f; --chbody: #282423; --chbot: #1f1c1b; --ch2: #12100f;
+    --lcd-bg: #111613; --lcd-acc: #5df29a; --lcd-lab: rgba(93,242,154,.75);
+    --amber: #f5b041; --plate: #d6cbb8; --panel: #1e1b1a; --panel2: #141211; --plateborder: #47413d;
+    --cream: #f3ece0; --creamtop: #faf5ec; --creamsh: #b8ae9e; --creambrd: #b5aca0;
+    --redkey: #d94e34; --redkeytop: #e85d43; --redkeysh: #8e2b19; --redkeybrd: #f38a76;
+    --darkkey: #3b3634; --darkkeytop: #47413f; --darkkeysh: #171413; --darkkeybrd: #635b57; --darkkeytxt: #e6dfd3;
+    width: 220px; height: 220px; position: relative;
+    filter: drop-shadow(0 16px 22px rgba(0,0,0,.5));
+  }
+  .w .serrated { position: absolute; top: 0; left: 0; right: 0; height: 6px;
+    background: linear-gradient(135deg, transparent 50%, var(--paper-bg) 50%),
+                linear-gradient(225deg, transparent 50%, var(--paper-bg) 50%);
+    background-size: 8px 6px; background-repeat: repeat-x; }
+  .paper { position: absolute; top: 6px; left: 0; right: 0; height: 100px; overflow: hidden;
+    background: var(--paper-bg) repeating-linear-gradient(to bottom, transparent 0 17px, var(--paper-line) 17px 18px);
+    color: var(--paper-ink); padding: 7px 9px; display: flex; flex-direction: column;
+    border-left: 1px solid rgba(0,0,0,.07); border-right: 1px solid rgba(0,0,0,.07); }
+  .hdr { display:flex; justify-content:space-between; align-items:center; border-bottom: 1.5px dashed #cfc5b4; padding-bottom:3px; margin-bottom:4px; }
+  .hdr-l { display:flex; align-items:center; gap:5px; }
+  .dot { width:5px; height:5px; border-radius:99px; background:#10b981; box-shadow:0 0 5px rgba(16,185,129,.7); }
+  .hdr-title { font-family:'Space Mono'; font-size:7px; font-weight:700; letter-spacing:.08em; color:#3f3830; text-transform: uppercase; }
+  .btn { font-family:'Courier Prime'; font-size:7px; color:#5a524a; border:1px solid #cfc5b4; border-radius:3px; padding:1px 5px; background:transparent; }
+  .task { display:flex; align-items:center; gap:5px; padding:1px 2px; border-radius:3px; }
+  .task.active { background: var(--red-soft); }
+  .task.active .ttl { text-decoration: underline; text-decoration-color: var(--red); text-decoration-thickness: 1.2px; text-underline-offset: 2px; font-weight:700; }
+  .cb { width:9px; height:9px; border:1px solid var(--paper-mut); border-radius:1px; background:#fffdf9; display:flex; align-items:center; justify-content:center; font-size:7px; color:#fffdf9; flex:none; }
+  .task.done .cb { background: var(--red); border-color: var(--red); }
+  .ttl { font-family:'Courier Prime'; font-size:7.5px; flex:1; color: var(--paper-ink); }
+  .task.done .ttl { color:#93897c; text-decoration: line-through; text-decoration-color: var(--red); }
+  .pill { font-family:'JetBrains Mono'; font-size:6px; color:#8a5a00; background:#fce9c0; border:1px solid #f0d49b; border-radius:99px; padding:0 4px; }
+  .roller { position:absolute; top:102px; left:0; right:0; height:11px; display:flex; align-items:center; justify-content:center; gap:0; }
+  .knob { width:7px; height:12px; border-radius:2px; border:1px solid var(--ch2); background: repeating-linear-gradient(to bottom, #e2dfd9 0 1.5px, #57524b 1.5px 3px); box-shadow:0 2px 2px rgba(0,0,0,.4); }
+  .stem { width:4px; height:5px; background: linear-gradient(to bottom, #d6d2c9, #6e685f); }
+  .roll { flex:1; max-width:88%; height:11px; border-radius:3px; background: linear-gradient(to bottom, #3a3634 0%, #1f1c1b 38%, #12100f 75%, #2b2725 100%); box-shadow: 0 3px 4px rgba(0,0,0,.5); display:flex; align-items:center; }
+  .rod { width:100%; height:2px; background: linear-gradient(to bottom, #f4f2ed, #8c867c); display:flex; justify-content:space-between; padding:0 22px; }
+  .pinch { width:8px; height:4px; background:#181615; border:1px solid #6e685f; border-radius:1px; }
+  .chassis { position:absolute; top:110px; left:0; right:0; bottom:0; border-radius:6px 6px 14px 14px;
+    background: linear-gradient(180deg, var(--chitop) 0%, var(--chbody) 18%, var(--chbot) 100%);
+    border-top:1px solid rgba(255,255,255,.14); border-bottom:3px solid var(--ch2);
+    padding:5px 7px; display:flex; flex-direction:column; box-shadow: inset 0 1px 0 rgba(255,255,255,.15); }
+  .ch-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:3px; }
+  .plate { font-family:'Space Mono'; font-size:6px; letter-spacing:.12em; color: var(--plate); background: linear-gradient(180deg, var(--panel), var(--panel2)); border:1px solid var(--plateborder); border-radius:2px; padding:1px 5px; }
+  .focus { font-family:'JetBrains Mono'; font-size:6.5px; font-weight:700; color: var(--amber); }
+  .lcd { background: var(--lcd-bg); border:1.5px solid #2c332f; border-radius:4px; box-shadow: inset 0 0 8px rgba(0,0,0,.9); padding:3px 6px; display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+  .lcd small { display:block; font-family:'JetBrains Mono'; font-size:5px; color: var(--lcd-lab); letter-spacing:.1em; }
+  .digits { font-family:'JetBrains Mono'; font-weight:700; font-size:16px; line-height:1; color: var(--lcd-acc); text-shadow: 0 0 8px rgba(93,242,154,.4); }
+  .rocker { display:flex; gap:2px; background:#12100f; border:1px solid var(--ch2); border-radius:4px; padding:2px; }
+  .rocker span { font-family:'Space Mono'; font-size:6px; padding:2px 5px; border-radius:3px; color:#857d73; }
+  .rocker .on { background:#3a3431; color:#faf6ee; }
+  .keys { display:grid; grid-template-columns:1fr 1fr 1fr .72fr; gap:4px; margin-top:auto; }
+  .key { border:none; border-radius:6px; padding:6px 2px 5px; font-family:'Space Mono'; font-size:8px; font-weight:700; }
+  .cream { background: linear-gradient(180deg, var(--creamtop), var(--cream)); color:#262220; border:1px solid var(--creambrd); box-shadow: 0 2px 0 var(--creamsh); }
+  .redk { background: linear-gradient(180deg, var(--redkeytop), var(--redkey)); color:#fffdf9; border:1px solid var(--redkeybrd); box-shadow: 0 2px 0 var(--redkeysh); }
+  .darkk { background: linear-gradient(180deg, var(--darkkeytop), var(--darkkey)); color: var(--darkkeytxt); border:1px solid var(--darkkeybrd); box-shadow: 0 2px 0 var(--darkkeysh); }
+
+  /* ============ PALETTES ============ */
+  .pal-a { /* current — Olivetti Espresso */ }
+  .pal-b { /* Lettera Olive */
+    --chitop:#40452e; --chbody:#333821; --chbot:#242819; --ch2:#141710;
+    --plate:#dcd8c3; --panel:#2a2d1c; --panel2:#1e2113; --plateborder:#4d5238;
+    --lcd-acc:#5df29a;
+  }
+  .pal-c { /* Oxblood */
+    --chitop:#432826; --chbody:#351f1e; --chbot:#251615; --ch2:#150c0b;
+    --plate:#e3cdc0; --panel:#2c1f1c; --panel2:#201412; --plateborder:#57403a;
+  }
+  .pal-d { /* Slate Navy + amber LCD */
+    --chitop:#2c3547; --chbody:#222a3a; --chbot:#171d29; --ch2:#0d111a;
+    --plate:#cfd6e0; --panel:#1b2230; --panel2:#131926; --plateborder:#3c4763;
+    --lcd-bg:#161309; --lcd-acc:#f5b041; --lcd-lab:rgba(245,176,65,.75);
+    --amber:#f5b041;
+  }
+  .pal-e { /* Ivory Smith-Corona (light body) */
+    --chitop:#e9e2d2; --chbody:#d9d1c0; --chbot:#b8af9d; --ch2:#8d8574;
+    --paper-bg:#f6f1e4; --paper-line:#ddd5c4;
+    --plate:#3c362c; --panel:#d9d1c0; --panel2:#c6bdaa; --plateborder:#a89f8c;
+    --amber:#b4530a;
+    --darkkey:#2c2a28; --darkkeytop:#3a3835; --darkkeysh:#141210; --darkkeybrd:#4d4a47; --darkkeytxt:#e6dfd3;
+  }
+</style>
+</head>
+<body>
+<h1>TimeKeeper — Colour Palette Mockups</h1>
+<p class="sub">Same Olivetti design, five colour stories · all 220×220 · pick one and I'll build it</p>
+
+<div class="row">
+
+  <div class="variant">
+    <div class="vlabel">A · Olivetti Espresso (current)</div>
+    <div class="w pal-a">
+      <div class="serrated"></div>
+      <div class="paper"><div class="hdr"><span class="hdr-l"><span class="dot"></span><span class="hdr-title">Daily Plan</span></span><button class="btn">EDIT .MD</button></div>
+        <div class="task active"><span class="cb"></span><span class="ttl">Study for exam</span></div>
+        <div class="task done"><span class="cb">✓</span><span class="ttl">Read 20 pages</span><span class="pill">25m</span></div>
+        <div class="task"><span class="cb"></span><span class="ttl">Practice problems</span></div>
+      </div>
+      <div class="roller"><span class="knob"></span><span class="stem"></span><div class="roll"><div class="rod"><span class="pinch"></span><span class="pinch"></span><span class="pinch"></span></div></div><span class="stem"></span><span class="knob"></span></div>
+      <div class="chassis">
+        <div class="ch-top"><span class="plate">TIMEKEEPER // MK-I</span><span class="focus">FOCUS: STUDY…</span></div>
+        <div class="lcd"><span><small>TIMER // READY · 25M</small><span class="digits">25:00</span></span><span class="rocker"><span class="on">TMR</span><span>SW</span></span></div>
+        <div class="keys"><button class="key cream">START</button><button class="key cream">RESET</button><button class="key redk">LOG</button><button class="key darkk">•••</button></div>
+      </div>
+    </div>
+    <div class="swatches"><span class="sw" style="background:#faf6ee"></span><span class="sw" style="background:#282423"></span><span class="sw" style="background:#5df29a"></span><span class="sw" style="background:#d94e34"></span></div>
+    <p class="vnote">Warm cream paper, espresso chassis, phosphor-green LCD, coral LOG. The shipping default.</p>
+  </div>
+
+  <div class="variant">
+    <div class="vlabel">B · Lettera Olive</div>
+    <div class="w pal-b">
+      <div class="serrated"></div>
+      <div class="paper"><div class="hdr"><span class="hdr-l"><span class="dot"></span><span class="hdr-title">Daily Plan</span></span><button class="btn">EDIT .MD</button></div>
+        <div class="task active"><span class="cb"></span><span class="ttl">Study for exam</span></div>
+        <div class="task done"><span class="cb">✓</span><span class="ttl">Read 20 pages</span><span class="pill">25m</span></div>
+        <div class="task"><span class="cb"></span><span class="ttl">Practice problems</span></div>
+      </div>
+      <div class="roller"><span class="knob"></span><span class="stem"></span><div class="roll"><div class="rod"><span class="pinch"></span><span class="pinch"></span><span class="pinch"></span></div></div><span class="stem"></span><span class="knob"></span></div>
+      <div class="chassis">
+        <div class="ch-top"><span class="plate">TIMEKEEPER // MK-I</span><span class="focus">FOCUS: STUDY…</span></div>
+        <div class="lcd"><span><small>TIMER // READY · 25M</small><span class="digits">25:00</span></span><span class="rocker"><span class="on">TMR</span><span>SW</span></span></div>
+        <div class="keys"><button class="key cream">START</button><button class="key cream">RESET</button><button class="key redk">LOG</button><button class="key darkk">•••</button></div>
+      </div>
+    </div>
+    <div class="swatches"><span class="sw" style="background:#faf6ee"></span><span class="sw" style="background:#333821"></span><span class="sw" style="background:#5df29a"></span><span class="sw" style="background:#d94e34"></span></div>
+    <p class="vnote">The classic Olivetti Lettera olive-green body. Cream keys pop harder against it; red LOG still sings.</p>
+  </div>
+
+  <div class="variant">
+    <div class="vlabel">C · Oxblood</div>
+    <div class="w pal-c">
+      <div class="serrated"></div>
+      <div class="paper"><div class="hdr"><span class="hdr-l"><span class="dot"></span><span class="hdr-title">Daily Plan</span></span><button class="btn">EDIT .MD</button></div>
+        <div class="task active"><span class="cb"></span><span class="ttl">Study for exam</span></div>
+        <div class="task done"><span class="cb">✓</span><span class="ttl">Read 20 pages</span><span class="pill">25m</span></div>
+        <div class="task"><span class="cb"></span><span class="ttl">Practice problems</span></div>
+      </div>
+      <div class="roller"><span class="knob"></span><span class="stem"></span><div class="roll"><div class="rod"><span class="pinch"></span><span class="pinch"></span><span class="pinch"></span></div></div><span class="stem"></span><span class="knob"></span></div>
+      <div class="chassis">
+        <div class="ch-top"><span class="plate">TIMEKEEPER // MK-I</span><span class="focus">FOCUS: STUDY…</span></div>
+        <div class="lcd"><span><small>TIMER // READY · 25M</small><span class="digits">25:00</span></span><span class="rocker"><span class="on">TMR</span><span>SW</span></span></div>
+        <div class="keys"><button class="key cream">START</button><button class="key cream">RESET</button><button class="key redk">LOG</button><button class="key darkk">•••</button></div>
+      </div>
+    </div>
+    <div class="swatches"><span class="sw" style="background:#faf6ee"></span><span class="sw" style="background:#351f1e"></span><span class="sw" style="background:#5df29a"></span><span class="sw" style="background:#d94e34"></span></div>
+    <p class="vnote">Deep oxblood body — burgundy like a military typewriter. Moodier, more dramatic on the desk.</p>
+  </div>
+
+  <div class="variant">
+    <div class="vlabel">D · Slate Navy</div>
+    <div class="w pal-d">
+      <div class="serrated"></div>
+      <div class="paper"><div class="hdr"><span class="hdr-l"><span class="dot"></span><span class="hdr-title">Daily Plan</span></span><button class="btn">EDIT .MD</button></div>
+        <div class="task active"><span class="cb"></span><span class="ttl">Study for exam</span></div>
+        <div class="task done"><span class="cb">✓</span><span class="ttl">Read 20 pages</span><span class="pill">25m</span></div>
+        <div class="task"><span class="cb"></span><span class="ttl">Practice problems</span></div>
+      </div>
+      <div class="roller"><span class="knob"></span><span class="stem"></span><div class="roll"><div class="rod"><span class="pinch"></span><span class="pinch"></span><span class="pinch"></span></div></div><span class="stem"></span><span class="knob"></span></div>
+      <div class="chassis">
+        <div class="ch-top"><span class="plate">TIMEKEEPER // MK-I</span><span class="focus">FOCUS: STUDY…</span></div>
+        <div class="lcd"><span><small>TIMER // READY · 25M</small><span class="digits">25:00</span></span><span class="rocker"><span class="on">TMR</span><span>SW</span></span></div>
+        <div class="keys"><button class="key cream">START</button><button class="key cream">RESET</button><button class="key redk">LOG</button><button class="key darkk">•••</button></div>
+      </div>
+    </div>
+    <div class="swatches"><span class="sw" style="background:#faf6ee"></span><span class="sw" style="background:#222a3a"></span><span class="sw" style="background:#f5b041"></span><span class="sw" style="background:#d94e34"></span></div>
+    <p class="vnote">Midnight slate body with warm-amber LCD digits — the "night watch" variant. Calm, focused, low glare.</p>
+  </div>
+
+  <div class="variant">
+    <div class="vlabel">E · Ivory Smith-Corona</div>
+    <div class="w pal-e">
+      <div class="serrated"></div>
+      <div class="paper"><div class="hdr"><span class="hdr-l"><span class="dot"></span><span class="hdr-title">Daily Plan</span></span><button class="btn">EDIT .MD</button></div>
+        <div class="task active"><span class="cb"></span><span class="ttl">Study for exam</span></div>
+        <div class="task done"><span class="cb">✓</span><span class="ttl">Read 20 pages</span><span class="pill">25m</span></div>
+        <div class="task"><span class="cb"></span><span class="ttl">Practice problems</span></div>
+      </div>
+      <div class="roller"><span class="knob"></span><span class="stem"></span><div class="roll"><div class="rod"><span class="pinch"></span><span class="pinch"></span><span class="pinch"></span></div></div><span class="stem"></span><span class="knob"></span></div>
+      <div class="chassis">
+        <div class="ch-top"><span class="plate">TIMEKEEPER // MK-I</span><span class="focus">FOCUS: STUDY…</span></div>
+        <div class="lcd"><span><small>TIMER // READY · 25M</small><span class="digits">25:00</span></span><span class="rocker"><span class="on">TMR</span><span>SW</span></span></div>
+        <div class="keys"><button class="key cream">START</button><button class="key cream">RESET</button><button class="key redk">LOG</button><button class="key darkk">•••</button></div>
+      </div>
+    </div>
+    <div class="swatches"><span class="sw" style="background:#f6f1e4"></span><span class="sw" style="background:#d9d1c0"></span><span class="sw" style="background:#5df29a"></span><span class="sw" style="background:#d94e34"></span></div>
+    <p class="vnote">Light ivory body with dark keys — the white office typewriter. Airy on a light desktop wallpaper.</p>
+  </div>
+
+</div>
+</body>
+</html>
