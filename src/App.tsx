@@ -15,11 +15,12 @@ const API_KEY_STORAGE = "timekeeper.notion.apiKey";
 const DB_ID_STORAGE = "timekeeper.notion.databaseId";
 const TOAST_MS = 4000;
 
+const SAMPLE_MARKDOWN =
+  "- [ ] Study for exam\n- [ ] Read 20 pages\n- [ ] Practice problems";
+
 export default function App() {
-  const [markdown, setMarkdown] = useState(
-    "- [ ] Study for exam\n- [ ] Read 20 pages\n- [ ] Practice problems"
-  );
-  const [showInput, setShowInput] = useState(true);
+  const [markdown, setMarkdown] = useState(SAMPLE_MARKDOWN);
+  const [showInput, setShowInput] = useState(false);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [apiKey, setApiKey] = useState(
     () => localStorage.getItem(API_KEY_STORAGE) ?? ""
@@ -53,7 +54,7 @@ export default function App() {
     removeTask,
     mergeFetched,
     addSingleTask,
-  } = useTaskList("");
+  } = useTaskList(SAMPLE_MARKDOWN);
   const session = useTimekeeperSession({ mode, initialSeconds: timerPreset * 60 });
 
   const chassisRef = useRef<HTMLDivElement>(null);
@@ -86,7 +87,13 @@ export default function App() {
       try {
         const fetched = await fetchIncompleteTasks({ apiKey: key, databaseId: dbId });
         mergeFetched(fetched);
-        if (announce) showToast(`Synced ${fetched.length} task(s) from Notion.`);
+        if (announce) {
+          showToast(
+            fetched.length === 0
+              ? "Notion connected — no incomplete tasks (all Done)."
+              : `Synced ${fetched.length} task(s) from Notion.`
+          );
+        }
       } catch (error) {
         showToast(
           `Notion refresh failed: ${error instanceof Error ? error.message : String(error)}`
@@ -124,6 +131,13 @@ export default function App() {
   const handleQuickAdd = useCallback(
     (title: string) => {
       addSingleTask(title);
+      // Keep the raw markdown in sync so a later DONE (RENDER) can't drop it.
+      setMarkdown((prev) => {
+        const trimmed = title.trim();
+        if (!trimmed) return prev;
+        const line = `- [ ] ${trimmed}`;
+        return prev.trim() ? `${prev.replace(/\s+$/, "")}\n${line}` : line;
+      });
     },
     [addSingleTask]
   );

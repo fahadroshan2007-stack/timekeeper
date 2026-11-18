@@ -44,6 +44,7 @@ describe("App (integration)", () => {
   it("parses pasted markdown into an interactive checklist", () => {
     render(<App />);
 
+    fireEvent.click(screen.getByTestId("key-edit"));
     fireEvent.change(screen.getByTestId("paper-input"), {
       target: { value: "- [ ] Buy milk\n- [ ] Write docs" },
     });
@@ -56,6 +57,7 @@ describe("App (integration)", () => {
   it("toggles a task checked when its checkbox is clicked", () => {
     render(<App />);
 
+    fireEvent.click(screen.getByTestId("key-edit"));
     fireEvent.change(screen.getByTestId("paper-input"), {
       target: { value: "- [ ] Buy milk" },
     });
@@ -110,6 +112,7 @@ describe("App (integration)", () => {
     });
     render(<App />);
 
+    fireEvent.click(screen.getByTestId("key-edit"));
     fireEvent.change(screen.getByTestId("paper-input"), {
       target: { value: "- [x] Done task" },
     });
@@ -134,6 +137,7 @@ describe("App (integration)", () => {
     localStorage.setItem("timekeeper.notion.databaseId", "test-db");
     render(<App />);
 
+    fireEvent.click(screen.getByTestId("key-edit"));
     fireEvent.change(screen.getByTestId("paper-input"), {
       target: { value: "- [x] Done task" },
     });
