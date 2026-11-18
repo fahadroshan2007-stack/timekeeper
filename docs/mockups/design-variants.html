@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TimeKeeper — Design Variants (220px)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Special+Elite&family=Courier+Prime:wght@400;700&family=JetBrains+Mono:wght@500;700&family=Space+Mono:wght@400;700&family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #171512;
+    font-family: Inter, system-ui, sans-serif;
+    color: #d7d2c8;
+    padding: 28px 24px 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 22px;
+  }
+  h1 { font-size: 17px; font-weight: 600; letter-spacing: 0.02em; color: #eee7da; }
+  .sub { font-size: 12px; color: #8a8378; margin-top: -12px; }
+  .variants { display: flex; gap: 34px; flex-wrap: wrap; justify-content: center; }
+  .variant { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .variant-label { font-size: 12px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #c9c2b4; }
+  .variant-note { font-size: 10.5px; color: #7d7669; width: 230px; text-align: center; line-height: 1.45; }
+
+  /* ================= SHARED STRUCTURE (mirrors the real app layout) ================= */
+  .w { width: 220px; height: 220px; position: relative; }
+  .w .paper { position: absolute; top: 6px; left: 0; right: 0; height: 100px; overflow: hidden; }
+  .w .serrated { position: absolute; top: 0; left: 0; right: 0; height: 6px; }
+  .w .roller { position: absolute; top: 102px; left: 0; right: 0; height: 13px; display: flex; align-items: center; justify-content: center; }
+  .w .chassis { position: absolute; top: 111px; left: 0; right: 0; bottom: 0; border-radius: 6px 6px 14px 14px; overflow: hidden; }
+  .row { display: flex; align-items: center; gap: 5px; }
+</style>
+</head>
+<body>
+<h1>TimeKeeper — Design Variants</h1>
+<p class="sub">Same 220×220 layout &amp; content, rendered in four design languages · pick one and it gets built into the app</p>
+
+<div class="variants">
+
+  <!-- ============ VARIANT A — Olivetti Espresso (current) ============ -->
+  <div class="variant">
+    <div class="variant-label">A · Olivetti Espresso (current)</div>
+    <div class="w" style="filter: drop-shadow(0 18px 24px rgba(0,0,0,.5));">
+      <style>
+        .a-p { background: #faf6ee repeating-linear-gradient(to bottom, transparent 0 17px, #eae3d2 17px 18px); padding: 8px 9px 6px; color: #24201e; display: flex; flex-direction: column; border-left: 1px solid rgba(0,0,0,.07); border-right: 1px solid rgba(0,0,0,.07); }
+        .a-serrated { background: linear-gradient(135deg, transparent 50%, #faf6ee 50%), linear-gradient(225deg, transparent 50%, #faf6ee 50%) top left / 8px 6px repeat-x; }
+        .a-hdr { display:flex; justify-content:space-between; align-items:center; border-bottom: 1.5px dashed #cfc5b4; padding-bottom: 3px; margin-bottom: 4px; }
+        .a-hdr b { font-family: 'Space Mono'; font-size: 7.5px; letter-spacing:.08em; text-transform: uppercase; color: #3f3830; }
+        .a-dot { width:5px;height:5px;border-radius:999px;background:#10b981; box-shadow:0 0 6px rgba(16,185,129,.7); display:inline-block; vertical-align:1px; margin-right:4px; }
+        .a-btn { font-family:'Courier Prime'; font-size:7px; color:#5a524a; border:1px solid #cfc5b4; border-radius:3px; padding:1px 4px; }
+        .a-task { display:flex; align-items:center; gap:5px; padding:1px 2px; border-radius:3px; }
+        .a-task.active { background: rgba(217,78,52,.12); }
+        .a-task.active .a-ttl { text-decoration: underline; text-decoration-color:#d94e34; text-decoration-thickness: 1.5px; text-underline-offset: 2px; font-weight:700; }
+        .a-cb { width:9px; height:9px; border:1px solid #5a524a; border-radius:1px; background:#fffdf9; font-size:7px; color:#fffdf9; display:flex;align-items:center;justify-content:center; }
+        .a-task.done .a-cb { background:#d94e34; border-color:#d94e34; }
+        .a-ttl { font-family:'Courier Prime'; font-size:8px; flex:1; color:#24201e; }
+        .a-task.done .a-ttl { color:#93897c; text-decoration: line-through; text-decoration-color:#d94e34; }
+        .a-pill { font-family:'JetBrains Mono'; font-size:6.5px; color:#8a5a00; background:#fce9c0; border:1px solid #f0d49b; border-radius:999px; padding:0 4px; }
+        .a-roller { background: linear-gradient(to bottom, #3a3634 0%, #1f1c1b 38%, #12100f 75%, #2b2725 100%); border-radius:3px; width:100%; height:11px; position:relative; display:flex; align-items:center; }
+        .a-rod { width:100%; height:2px; background: linear-gradient(to bottom, #f4f2ed, #8c867c); display:flex; justify-content:space-between; padding:0 26px; }
+        .a-pinch { width:8px; height:4px; background:#181615; border:1px solid #6e685f; border-radius:1px; }
+        .a-knob { width:7px; height:12px; border-radius:2px; border:1px solid #3c3834; background: repeating-linear-gradient(to bottom, #e2dfd9 0 1.5px, #57524b 1.5px 3px); box-shadow: 0 2px 2px rgba(0,0,0,.4); }
+        .a-ch { background: linear-gradient(180deg, #36312f 0%, #282423 18%, #1f1c1b 100%); border-top:1px solid rgba(255,255,255,.14); padding: 5px 7px; display:flex; flex-direction:column; }
+        .a-ch-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:3px; }
+        .a-plate { font-family:'Space Mono'; font-size:6px; letter-spacing:.1em; color:#d6cbb8; background:linear-gradient(180deg,#1e1b1a,#141211); border:1px solid #47413d; border-radius:2px; padding:1px 5px; }
+        .a-focus { font-family:'JetBrains Mono'; font-size:6.5px; color:#f5b041; }
+        .a-lcd { background:#111613; border:1px solid #2c332f; border-radius:4px; box-shadow: inset 0 0 8px rgba(0,0,0,.9); padding:4px 6px; display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; }
+        .a-lcd small { display:block; font-family:'JetBrains Mono'; font-size:5px; color:rgba(93,242,154,.75); letter-spacing:.1em; }
+        .a-digits { font-family:'JetBrains Mono'; font-weight:700; font-size:16px; color:#5df29a; text-shadow:0 0 8px rgba(93,242,154,.45); line-height:1; }
+        .a-rocker { background:#12100f; border:1px solid #443e3b; border-radius:4px; padding:1px; display:flex; gap:1px; }
+        .a-rocker span { font-family:'Space Mono'; font-size:6px; padding:2px 4px; border-radius:3px; color:#857d73; }
+        .a-rocker .on { background:#3a3431; color:#faf6ee; }
+        .a-keys { display:grid; grid-template-columns:1fr 1fr 1fr .72fr; gap:4px; margin-top:auto; }
+        .a-key { border:none; border-radius:6px; padding:6px 2px 5px; font-family:'Space Mono'; font-size:8px; font-weight:700; }
+        .a-cream { background: linear-gradient(180deg,#faf5ec, #f3ece0); color:#262220; border:1px solid #b5aca0; box-shadow: 0 2px 0 #b8ae9e; }
+        .a-red { background: linear-gradient(180deg,#e85d43,#d94e34); color:#fffdf9; border:1px solid #f38a76; box-shadow: 0 2px 0 #8e2b19; }
+        .a-dark { background: linear-gradient(180deg,#47413f,#3b3634); color:#e6dfd3; border:1px solid #635b57; box-shadow: 0 2px 0 #171413; }
+      </style>
+      <div class="paper a-p">
+        <div class="a-hdr"><span><span class="a-dot"></span><b>Daily Plan // Notion</b></span><span class="a-btn">EDIT .MD</span></div>
+        <div class="a-task active"><span class="a-cb"></span><span class="a-ttl">Study for exam</span></div>
+        <div class="a-task done"><span class="a-cb">✓</span><span class="a-ttl">Read 20 pages</span><span class="a-pill">25m</span></div>
+        <div class="a-task"><span class="a-cb"></span><span class="a-ttl">Practice problems</span></div>
+      </div>
+      <div class="serrated a-serrated"></div>
+      <div class="roller"><span class="a-knob"></span><div class="a-roller"><div class="a-rod"><span class="a-pinch"></span><span class="a-pinch"></span><span class="a-pinch"></span></div></div><span class="a-knob"></span></div>
+      <div class="chassis a-ch">
+        <div class="a-ch-top"><span class="a-plate">TIMEKEEPER // MK-I</span><span class="a-focus">FOCUS: STUDY…</span></div>
+        <div class="a-lcd"><span><small>TIMER // READY · 25M</small><span class="a-digits">25:00</span></span><span class="a-rocker"><span class="on">TMR</span><span>SW</span></span></div>
+        <div class="a-keys"><button class="a-key a-cream">START</button><button class="a-key a-cream">RESET</button><button class="a-key a-red">LOG</button><button class="a-key a-dark">•••</button></div>
+      </div>
+    </div>
+    <p class="variant-note">Glossy retro desk material, warm cream paper, phosphor LCD. The current, shipping design.</p>
+  </div>
+
+  <!-- ============ VARIANT B — 8-bit Pixel ============ -->
+  <div class="variant">
+    <div class="variant-label">B · 8-bit Pixel</div>
+    <div class="w" style="filter: drop-shadow(0 14px 18px rgba(0,0,0,.55)); image-rendering: pixelated;">
+      <style>
+        .b-p { background: #f7f3df; padding: 6px 7px; color: #1e1d1a; display:flex; flex-direction:column; border: 2px solid #141310; border-bottom:none; background-image: repeating-linear-gradient(to bottom, transparent 0 14px, #e4dfc9 14px 16px); }
+        .b-serrated { background: linear-gradient(135deg, transparent 50%, #f7f3df 50%), linear-gradient(225deg, transparent 50%, #f7f3df 50%) top left / 10px 6px repeat-x; }
+        .b-hdr { display:flex; justify-content:space-between; align-items:center; border-bottom: 2px dashed #141310; padding-bottom:2px; margin-bottom:3px; }
+        .b-hdr b { font-family:'Press Start 2P'; font-size:6px; color:#141310; }
+        .b-dot { width:6px;height:6px;background:#23c85d;display:inline-block;margin-right:4px; box-shadow: 0 0 0 1px #141310; }
+        .b-btn { font-family:'Press Start 2P'; font-size:5px; color:#141310; border:2px solid #141310; padding:2px 3px; background:#f7f3df; }
+        .b-task { display:flex; align-items:center; gap:4px; padding:1px 1px; }
+        .b-task.active .b-ttl { text-decoration: underline; text-decoration-color:#e03e1e; text-decoration-thickness:2px; text-underline-offset:2px; }
+        .b-cb { width:9px; height:9px; border:2px solid #141310; background:#f7f3df; font-size:6px; display:flex;align-items:center;justify-content:center; }
+        .b-task.done .b-cb { background:#e03e1e; color:#fff; }
+        .b-ttl { font-family:'Press Start 2P'; font-size:6px; line-height:1.6; color:#141310; flex:1; }
+        .b-task.done .b-ttl { color:#8a8674; text-decoration: line-through; text-decoration-color:#e03e1e; }
+        .b-pill { font-family:'Press Start 2P'; font-size:5px; background:#ffd23e; border:2px solid #141310; padding:1px 3px; color:#141310; }
+        .b-roller { background: #2a2725; border-top:2px solid #141310; border-bottom:2px solid #141310; position:relative; display:flex; align-items:center; width:100%; height:11px; }
+        .b-rod { width:100%; height:2px; background:#57524b; display:flex; justify-content:space-between; padding:0 24px; }
+        .b-pinch { width:8px; height:3px; background:#141310; }
+        .b-knob { width:8px; height:11px; background: repeating-linear-gradient(to bottom, #d8d4cb 0 2px, #3a3634 2px 4px); border:2px solid #141310; }
+        .b-ch { background:#232120; border:2px solid #141310; border-top:none; padding:5px 7px; display:flex; flex-direction:column; }
+        .b-ch-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:3px; }
+        .b-plate { font-family:'Press Start 2P'; font-size:5px; color:#ffd23e; background:#141310; padding:2px 4px; }
+        .b-focus { font-family:'Press Start 2P'; font-size:5px; color:#ffd23e; }
+        .b-lcd { background:#0d1f14; border:2px solid #141310; padding:3px 6px; display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+        .b-lcd small { display:block; font-family:'Press Start 2P'; font-size:4px; color:#3fdc74; }
+        .b-digits { font-family:'Press Start 2P'; font-size:13px; color:#3fdc74; }
+        .b-rocker { border:2px solid #141310; background:#141310; display:flex; gap:2px; padding:2px; }
+        .b-rocker span { font-family:'Press Start 2P'; font-size:5px; padding:2px 3px; color:#7d7669; }
+        .b-rocker .on { background:#3a2b1a; color:#ffd23e; }
+        .b-keys { display:grid; grid-template-columns:1fr 1fr 1fr .72fr; gap:4px; margin-top:auto; }
+        .b-key { border:2px solid #141310; border-radius:2px; padding:6px 2px 5px; font-family:'Press Start 2P'; font-size:7px; box-shadow: 3px 3px 0 #141310; }
+        .b-cream { background:#f7f3df; color:#141310; }
+        .b-red { background:#e03e1e; color:#fff; }
+        .b-dark { background:#3b3634; color:#f7f3df; }
+      </style>
+      <div class="paper b-p">
+        <div class="b-hdr"><span><span class="b-dot"></span><b>DAILY PLAN</b></span><span class="b-btn">EDIT</span></div>
+        <div class="b-task active"><span class="b-cb"></span><span class="b-ttl">STUDY EXAM</span></div>
+        <div class="b-task done"><span class="b-cb">✓</span><span class="b-ttl">READ 20 PAGES</span><span class="b-pill">25m</span></div>
+        <div class="b-task"><span class="b-cb"></span><span class="b-ttl">PRACTICE</span></div>
+      </div>
+      <div class="serrated b-serrated"></div>
+      <div class="roller"><span class="b-knob"></span><div class="b-roller"><div class="b-rod"><span class="b-pinch"></span><span class="b-pinch"></span><span class="b-pinch"></span></div></div><span class="b-knob"></span></div>
+      <div class="chassis b-ch">
+        <div class="b-ch-top"><span class="b-plate">TK // MK-I</span><span class="b-focus">▶ STUDY</span></div>
+        <div class="b-lcd"><span><small>TIMER · 25M</small><span class="b-digits">25:00</span></span><span class="b-rocker"><span class="on">TMR</span><span>SW</span></span></div>
+        <div class="b-keys"><button class="b-key b-cream">START</button><button class="b-key b-cream">RESET</button><button class="b-key b-red">LOG</button><button class="b-key b-dark">...</button></div>
+      </div>
+    </div>
+    <p class="variant-note">Hard pixels, 3px black borders, Press Start 2P, dithered shading. Arcade-cabinet energy.</p>
+  </div>
+
+  <!-- ============ VARIANT C — Flat Vector ============ -->
+  <div class="variant">
+    <div class="variant-label">C · Flat Vector</div>
+    <div class="w" style="filter: drop-shadow(0 16px 22px rgba(0,0,0,.42));">
+      <style>
+        .c-p { background: #fbf7ef; padding: 9px 10px; color: #33302c; display:flex; flex-direction:column; border-radius:10px 10px 0 0; }
+        .c-serrated { background: #fbf7ef; border-radius: 10px 10px 0 0; height: 8px; }
+        .c-hdr { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+        .c-hdr b { font-family: Inter; font-size: 8px; font-weight:600; letter-spacing:.06em; color:#6b655c; text-transform:uppercase; }
+        .c-dot { width:6px;height:6px;border-radius:99px;background:#12b981;display:inline-block;margin-right:4px;vertical-align:1px; }
+        .c-btn { font-family: Inter; font-size: 8px; font-weight:600; color:#8a8378; background:#eee9dd; border-radius:99px; padding:2px 7px; border:none; }
+        .c-task { display:flex; align-items:center; gap:6px; padding:2px 2px; border-radius:6px; }
+        .c-task.active { background:#f6e7df; }
+        .c-task.active .c-ttl { color:#cf4b2c; text-decoration: underline; text-decoration-thickness:2px; text-underline-offset:3px; font-weight:600; }
+        .c-cb { width:11px; height:11px; border-radius:3px; border:1.5px solid #b9b3a7; background:#fff; display:flex; align-items:center; justify-content:center; font-size:8px; color:#fff; }
+        .c-task.done .c-cb { background:#e4572e; border-color:#e4572e; }
+        .c-ttl { font-family: Inter; font-size: 8.5px; flex:1; color:#33302c; }
+        .c-task.done .c-ttl { color:#b6b0a3; text-decoration: line-through; text-decoration-color:#e4572e; text-decoration-thickness:2px; }
+        .c-pill { font-family: Inter; font-size:6.5px; font-weight:700; color:#8a5a00; background:#fdebc4; border-radius:99px; padding:1px 5px; }
+        .c-roller { background:#262320; display:flex; align-items:center; height:9px; }
+        .c-rod { width:100%; height:2px; background:#3b3835; position:relative; }
+        .c-pinch { position:absolute; top:-2px; width:8px; height:6px; border-radius:2px; background:#161413; }
+        .c-pinch:nth-child(1){ left:30px; } .c-pinch:nth-child(2){ left:96px; } .c-pinch:nth-child(3){ right:30px; }
+        .c-knob { width:9px; height:13px; border-radius:3px; background:#c8c4bb; }
+        .c-ch { background:#2e2a27; padding:7px 9px 8px; display:flex; flex-direction:column; border-radius:0 0 16px 16px; }
+        .c-ch-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; }
+        .c-plate { font-family: Inter; font-size:6px; font-weight:700; letter-spacing:.12em; color:#b7b0a4; background:#242120; padding:2px 6px; border-radius:4px; }
+        .c-focus { font-family: Inter; font-size:7px; font-weight:700; color:#f5b041; }
+        .c-lcd { background:#151a17; border-radius:9px; padding:5px 9px; display:flex; justify-content:space-between; align-items:center; margin-bottom:7px; }
+        .c-lcd small { display:block; font-family: Inter; font-size:5.5px; font-weight:700; color:#5df29a; letter-spacing:.08em; }
+        .c-digits { font-family: Inter; font-weight:700; font-size:17px; color:#5df29a; line-height:1; font-variant-numeric: tabular-nums; }
+        .c-rocker { display:flex; background:#221f1c; border-radius:99px; padding:2px; gap:2px; }
+        .c-rocker span { font-family: Inter; font-size:6.5px; font-weight:600; padding:2px 6px; border-radius:99px; color:#8a8378; }
+        .c-rocker .on { background:#f5b041; color:#2b2118; }
+        .c-keys { display:grid; grid-template-columns:1fr 1fr 1fr .72fr; gap:5px; margin-top:auto; }
+        .c-key { border:none; border-radius:10px; padding:6px 2px 5px; font-family: Inter; font-size:8px; font-weight:700; }
+        .c-cream { background:#f4efe6; color:#33302c; box-shadow: 0 2px 0 #d8d2c6; }
+        .c-red { background:#e4572e; color:#fff; box-shadow: 0 2px 0 #a83716; }
+        .c-dark { background:#221f1c; color:#d8d2c6; box-shadow: 0 2px 0 #0f0d0c; }
+      </style>
+      <div class="paper c-p">
+        <div class="c-hdr"><b><span class="c-dot"></span>Daily plan</b><button class="c-btn">Edit ✎</button></div>
+        <div class="c-task active"><span class="c-cb"></span><span class="c-ttl">Study for exam</span></div>
+        <div class="c-task done"><span class="c-cb">✓</span><span class="c-ttl">Read 20 pages</span><span class="c-pill">25m</span></div>
+        <div class="c-task"><span class="c-cb"></span><span class="c-ttl">Practice problems</span></div>
+      </div>
+      <div class="serrated c-serrated"></div>
+      <div class="roller"><span class="c-knob"></span><div class="c-roller"><div class="c-rod"><span class="c-pinch"></span><span class="c-pinch"></span><span class="c-pinch"></span></div></div><span class="c-knob"></span></div>
+      <div class="chassis c-ch">
+        <div class="c-ch-top"><span class="c-plate">TIMEKEEPER</span><span class="c-focus">FOCUS · EXAM</span></div>
+        <div class="c-lcd"><span><small>TIMER · 25M</small><span class="c-digits">25:00</span></span><span class="c-rocker"><span class="on">TMR</span><span>SW</span></span></div>
+        <div class="c-keys"><button class="c-key c-cream">START</button><button class="c-key c-cream">RESET</button><button class="c-key c-red">LOG</button><button class="c-key c-dark">•••</button></div>
+      </div>
+    </div>
+    <p class="variant-note">Soft flat shapes, big radius, one shadow, confident color. SaaS-product feel.</p>
+  </div>
+
+  <!-- ============ VARIANT D — Sepia Sketch ============ -->
+  <div class="variant">
+    <div class="variant-label">D · Sepia Sketch</div>
+    <div class="w" style="filter: drop-shadow(0 16px 20px rgba(0,0,0,.5));">
+      <style>
+        .d-p { background: #efe6d4 url("") ; background-image: repeating-linear-gradient(45deg, transparent 0 3px, rgba(60,44,28,.05) 3px 4px, transparent 4px 7px); border: 2px solid #3c2c1c; padding: 7px 8px; color: #2c2118; display:flex; flex-direction:column; }
+        .d-serrated { background: repeating-linear-gradient(-45deg, #efe6d4 0 6px, #d8cdb8 6px 8px); border-left:2px solid #3c2c1c; border-right:2px solid #3c2c1c; }
+        .d-hdr { display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid #3c2c1c; padding-bottom:2px; margin-bottom:3px; }
+        .d-hdr b { font-family:'Special Elite', cursive; font-size:8px; letter-spacing:.04em; color:#3c2c1c; }
+        .d-btn { font-family:'Special Elite'; font-size:7px; border:1.5px solid #3c2c1c; padding:1px 4px; background:transparent; }
+        .d-task { display:flex; align-items:center; gap:5px; padding:1px 1px; }
+        .d-task.active .d-ttl { text-decoration: underline; text-decoration-color:#b03a1e; text-decoration-thickness:1.5px; text-underline-offset:2px; text-decoration-style: wavy; }
+        .d-cb { width:10px;height:10px;border:1.5px solid #3c2c1c; background:transparent; display:flex; align-items:center; justify-content:center; font-size:8px; }
+        .d-task.done .d-cb { background:#3c2c1c; color:#efe6d4; }
+        .d-ttl { font-family:'Special Elite'; font-size:8px; flex:1; color:#2c2118; }
+        .d-task.done .d-ttl { color:#7d7264; text-decoration: line-through; text-decoration-color:#b03a1e; }
+        .d-pill { font-family:'Special Elite'; font-size:6px; border:1.5px solid #8a5a00; color:#8a5a00; border-radius:99px; padding:0 5px; }
+        .d-roller { background: #4a4038; display:flex; align-items:center; height:11px; border-bottom:2px solid #3c2c1c; }
+        .d-rod { width:100%; height:2px; background:#d8cdb8; display:flex; justify-content:space-between; padding:0 26px; }
+        .d-pinch { width:7px;height:4px; background:#241c14; }
+        .d-knob { width:8px;height:12px;border:1.5px solid #3c2c1c; background: repeating-linear-gradient(45deg,#efe6d4 0 2px,#5a5044 2px 4px); }
+        .d-ch { background: #3a3129; background-image: repeating-linear-gradient(-45deg, transparent 0 4px, rgba(0,0,0,.18) 4px 5px); padding:6px 8px; display:flex; flex-direction:column; border-top:2px solid #241c14; }
+        .d-ch-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+        .d-plate { font-family:'Special Elite'; font-size:6.5px; color:#efe6d4; background:#241c14; padding:2px 5px; border-radius:2px; border:1px solid #57493a; letter-spacing:.1em; }
+        .d-focus { font-family:'Special Elite'; font-size:6.5px; color:#f0c987; }
+        .d-lcd { background:#141a15; border:2px solid #241c14; padding:3px 7px; display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; }
+        .d-lcd small { display:block; font-family:'Special Elite'; font-size:5px; color:#7fd8a0; }
+        .d-digits { font-family:'JetBrains Mono'; font-weight:700; font-size:15px; color:#5df29a; text-shadow: 0 0 6px rgba(93,242,154,.4); }
+        .d-rocker { border:1.5px solid #57493a; display:flex; gap:2px; padding:2px; }
+        .d-rocker span { font-family:'Special Elite'; font-size:6px; padding:2px 4px; color:#a89a86; }
+        .d-rocker .on { background:#57493a; color:#efe6d4; }
+        .d-keys { display:grid; grid-template-columns:1fr 1fr 1fr .72fr; gap:5px; margin-top:auto; }
+        .d-key { border:1.5px solid #241c14; border-radius:99px; padding:6px 2px 5px; font-family:'Special Elite'; font-size:8px; letter-spacing:.05em; }
+        .d-cream { background:#efe6d4; color:#2c2118; box-shadow: 2px 2px 0 #241c14; }
+        .d-red { background:#b03a1e; color:#efe6d4; box-shadow: 2px 2px 0 #572012; }
+        .d-dark { background:#241c14; color:#efe6d4; box-shadow: 2px 2px 0 #000; }
+      </style>
+      <div class="paper d-p">
+        <div class="d-hdr"><b>Daily Plan</b><button class="d-btn">EDIT .MD</button></div>
+        <div class="d-task active"><span class="d-cb"></span><span class="d-ttl">Study for exam</span></div>
+        <div class="d-task done"><span class="d-cb">✓</span><span class="d-ttl">Read 20 pages</span><span class="d-pill">25m</span></div>
+        <div class="d-task"><span class="d-cb"></span><span class="d-ttl">Practice problems</span></div>
+      </div>
+      <div class="serrated d-serrated"></div>
+      <div class="roller"><span class="d-knob"></span><div class="d-roller"><div class="d-rod"><span class="d-pinch"></span><span class="d-pinch"></span><span class="d-pinch"></span></div></div><span class="d-knob"></span></div>
+      <div class="chassis d-ch">
+        <div class="d-ch-top"><span class="d-plate">TIMEKEEPER</span><span class="d-focus">FOCUS: EXAM</span></div>
+        <div class="d-lcd"><span><small>TIMER · 25M TARGET</small><span class="d-digits">25:00</span></span><span class="d-rocker"><span class="on">TMR</span><span>SW</span></span></div>
+        <div class="d-keys"><button class="d-key d-cream">START</button><button class="d-key d-cream">RESET</button><button class="d-key d-red">LOG</button><button class="d-key d-dark">...</button></div>
+      </div>
+    </div>
+    <p class="variant-note">Cross-hatch ink on aged paper. Old engineering manual, hand-drawn keycaps.</p>
+  </div>
+
+</div>
+</body>
+</html>
