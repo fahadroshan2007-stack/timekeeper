@@ -32,6 +32,17 @@ export default function App() {
   const [logging, setLogging] = useState(false);
   const [mode, setMode] = useState<TimekeeperMode>("timer");
   const [timerPreset, setTimerPreset] = useState(25);
+  const [theme, setTheme] = useState<"espresso" | "late">(() =>
+    localStorage.getItem("timekeeper.theme") === "late" ? "late" : "espresso"
+  );
+
+  const toggleTheme = useCallback(() => {
+    setTheme((prev) => {
+      const next = prev === "late" ? "espresso" : "late";
+      localStorage.setItem("timekeeper.theme", next);
+      return next;
+    });
+  }, []);
 
   const {
     tasks,
@@ -192,7 +203,7 @@ export default function App() {
   );
 
   return (
-    <div className="typewriter-widget">
+    <div className="typewriter-widget" data-theme={theme}>
       <Paper
         markdown={markdown}
         onMarkdownChange={setMarkdown}
@@ -229,6 +240,8 @@ export default function App() {
           onSettings={() => setSettingsOpen(true)}
           onMinimize={handleMinimize}
           onClose={handleClose}
+          theme={theme}
+          onToggleTheme={toggleTheme}
           onTimerPreset={setTimerPreset}
         />
       </div>

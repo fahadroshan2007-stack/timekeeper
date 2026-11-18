@@ -21,6 +21,8 @@ interface ChassisProps {
   onMinimize: () => void;
   onClose: () => void;
   onTimerPreset: (minutes: number) => void;
+  theme: "espresso" | "late";
+  onToggleTheme: () => void;
 }
 
 function formatDisplay(seconds: number): string {
@@ -54,6 +56,8 @@ export default function Chassis({
   onMinimize,
   onClose,
   onTimerPreset,
+  theme,
+  onToggleTheme,
 }: ChassisProps) {
   const isStopwatch = mode === "stopwatch";
   const startPauseLabel = status === "running" ? "PAUSE" : status === "paused" ? "RESUME" : "START";
@@ -96,6 +100,16 @@ export default function Chassis({
           >
             {activeLabel ? `FOCUS: ${activeLabel.toUpperCase()}` : "NO FOCUS SET"}
           </span>
+          <button
+            type="button"
+            data-testid="key-theme"
+            onClick={onToggleTheme}
+            title={theme === "late" ? "Switch to Olivetti Espresso" : "Switch to Noir & Brass (late night)"}
+            className="icon-key"
+            aria-pressed={theme === "late"}
+          >
+            {theme === "late" ? "◑" : "◐"}
+          </button>
           <button
             type="button"
             data-testid="key-minimize"

@@ -68,6 +68,24 @@ describe("App (integration)", () => {
     expect(row!.getAttribute("data-checked")).toBe("true");
   });
 
+  it("toggles the Noir & Brass (late-night) theme on the widget root", () => {
+    render(<App />);
+
+    const root = document.querySelector(".typewriter-widget");
+    expect(root?.getAttribute("data-theme")).toBe("espresso");
+
+    fireEvent.click(screen.getByTestId("key-theme"));
+    expect(document.querySelector(".typewriter-widget")?.getAttribute("data-theme")).toBe(
+      "late"
+    );
+    expect(localStorage.getItem("timekeeper.theme")).toBe("late");
+
+    fireEvent.click(screen.getByTestId("key-theme"));
+    expect(document.querySelector(".typewriter-widget")?.getAttribute("data-theme")).toBe(
+      "espresso"
+    );
+  });
+
   it("closes the window when the close key is pressed", () => {
     render(<App />);
     fireEvent.click(screen.getByTestId("key-close"));
