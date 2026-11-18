@@ -26,6 +26,14 @@ fn now_iso() -> String {
 fn build_client() -> reqwest::Client {
     reqwest::Client::builder()
         .timeout(Duration::from_secs(15))
+        .default_headers({
+            let mut headers = reqwest::header::HeaderMap::new();
+            headers.insert(
+                reqwest::header::HeaderName::from_static("notion-version"),
+                reqwest::header::HeaderValue::from_static("2022-06-28"),
+            );
+            headers
+        })
         .build()
         .expect("reqwest client must build")
 }

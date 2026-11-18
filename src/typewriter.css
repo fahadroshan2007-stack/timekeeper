@@ -66,6 +66,9 @@ body {
   flex-direction: column;
   overflow: hidden;
   background: transparent;
+  max-width: 356px;
+  max-height: 560px;
+  margin: 0 auto;
 }
 
 /* =========================================
@@ -716,11 +719,12 @@ body {
 
 .mode-rocker {
   display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
   background: #12100f;
   border: 1px solid #443e3b;
   border-radius: 6px;
   padding: 2px;
-  gap: 2px;
 }
 
 .mode-rocker button {
