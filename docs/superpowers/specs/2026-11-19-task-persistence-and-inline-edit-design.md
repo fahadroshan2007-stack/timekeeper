@@ -77,7 +77,7 @@ Notion when the task is checked.
 
 ```ts
 type PendingOp =
-  | { kind: "create"; localId: string; title: string }     // quick-add → To Do page
+  | { kind: "create"; localId: string; title: string }     // quick-add → new page (no Status written; DB default applies — "Not Started")
   | { kind: "done";   localId: string; title: string;      // strikethrough → Done
       notionPageId: string | null; accumulatedMinutes: number }
   | { kind: "rename"; localId: string; notionPageId: string; title: string }
@@ -99,7 +99,8 @@ one request per task:
 ### Local-first flows
 
 1. **Quick-add.** Task appended locally + persisted; a `create` op is queued.
-   Notion gets it at the next flush (Status To Do). *Call: creating on the
+   Notion gets it at the next flush (Status omitted — the database default,
+   "Not Started", applies). *Call: creating on the
    tick, not synchronously — paper stays instant.*
 2. **Check.** `isChecked` flips locally; CSS strikethrough animation plays
    (~450 ms); task is removed from the list; `done` op queued with the
