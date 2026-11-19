@@ -14,7 +14,7 @@ The widget looks like a retro typewriter sitting on your desktop: a sheet of pap
 
 ## Download
 
-**[v0.1.0](https://github.com/fahadroshan2007-stack/timekeeper/releases/tag/v0.1.0)** — [`TimeKeeper_0.1.0_x64_en-US.msi`](https://github.com/fahadroshan2007-stack/timekeeper/releases/download/v0.1.0/TimeKeeper_0.1.0_x64_en-US.msi) (installer) or [`timekeeper.exe`](https://github.com/fahadroshan2007-stack/timekeeper/releases/download/v0.1.0/timekeeper.exe) (portable). Unsigned — SmartScreen: More info → Run anyway.
+**[v0.1.1](https://github.com/fahadroshan2007-stack/timekeeper/releases/tag/v0.1.1)** — [`TimeKeeper_0.1.1_x64_en-US.msi`](https://github.com/fahadroshan2007-stack/timekeeper/releases/download/v0.1.1/TimeKeeper_0.1.1_x64_en-US.msi) (installer), [`TimeKeeper_0.1.1_x64-setup.exe`](https://github.com/fahadroshan2007-stack/timekeeper/releases/download/v0.1.1/TimeKeeper_0.1.1_x64-setup.exe) (NSIS installer), or [`timekeeper.exe`](https://github.com/fahadroshan2007-stack/timekeeper/releases/download/v0.1.1/timekeeper.exe) (portable). Unsigned — SmartScreen: More info → Run anyway.
 
 ## License
 
