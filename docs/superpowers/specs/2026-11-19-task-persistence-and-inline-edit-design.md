@@ -120,7 +120,7 @@ one request per task:
 - State: `pendingOps` persisted on every change (same write-through pattern
   as tasks).
 - Triggers: every **30 s** interval; once at launch; on manual refresh (the
- ↻ button now also flushes after the pull). Skipped silently when no
+ ↻ button **flushes first, then pulls** — see pull-merge section). Skipped silently when no
   credentials are set or `navigator.onLine` is false.
 - Invoke `notion_flush_ops({ apiKey, databaseId, ops })` (Rust): one HTTP
   round trip per coalesced op, executed in order: creates, dones, renames,
@@ -168,6 +168,42 @@ can't resurrect deleted or already-done tasks.
 
 Empty paper + existing stored credentials/theme untouched. `SAMPLE_MARKDOWN`
 goes away as a seed (it may remain as the textarea placeholder).
+
+### Pull-merge vs pending ops
+
+A fetched page whose `notionPageId` appears in any queued `done`/`trash` op
+is **dropped from the merge** — it is either vanished-but-not-yet-pushed or
+deleted-but-not-yet-trashed, and must not resurrect on the paper.
+`mergeFetched` reads the pending-ops queue (App supplies it) rather than
+only comparing against the stored list. Refresh (↻) and launch both run
+**flush first, then pull** — a pull that ran before the flush would always
+see the pages backing pending ops. A failed flush does not abort the pull,
+but the op-filter still applies, so failures cannot resurrect tasks either.
+
+### Vanish-on-check and persistence
+
+The check handler removes the task from the list **synchronously** and
+queues the `done` op at click time; only the *animation* is ephemeral
+(evanescing row ids in component state, ~450 ms). The persisted list
+therefore never contains an `isChecked: true` row awaiting removal — closing
+the app mid-animation is safe.
+
+### DONE (RENDER) re-parse stability
+
+`addTaskList` re-parses Markdown, minting fresh `localId`s — which would
+orphan the create-op `pageId` write-back. Fix: re-parse **preserves
+`localId` and `notionPageId` by matching rows to the current list by title**
+(first unmatched existing row wins; local-only rows match local-only rows,
+Notion rows match Notion rows). No title-unique requirement beyond that.
+
+### Folding rules (amended)
+
+- create → done → trash ⇒ **all dropped** (page never existed; mirrors
+  create → trash). If the create already flushed, trash applies to its
+  page id as usual.
+- `rename.notionPageId` is `string | null`; a rename for a pageless task
+  folds into its queued create (create → rename ⇒ create with the new
+  title). Only if no create/done op is queued is the rename dropped.
 
 ## Testing
 
