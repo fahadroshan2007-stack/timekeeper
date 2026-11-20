@@ -1,0 +1,221 @@
+import { describe, it, expect } from "vitest";
+import type { Task } from "./tasks";
+import type { PendingOp, WireOp, OpResult } from "./sync";
+import { coalesceOps, applyFlushResults, filterFetched } from "./sync";
+
+const local = (overrides: Partial<Task>): Task => ({
+  localId: "local-1",
+  notionPageId: null,
+  title: "Task",
+  isChecked: false,
+  accumulatedMinutes: 0,
+  ...overrides,
+});
+
+const fetched = (overrides: Partial<Task>): Task => ({
+  localId: "page-1",
+  notionPageId: "page-1",
+  title: "Fetched",
+  isChecked: false,
+  accumulatedMinutes: 0,
+  ...overrides,
+});
+
+const createOp = (id: string, localId: string, title: string): PendingOp => ({
+  id,
+  kind: "create",
+  localId,
+  title,
+  attempts: 0,
+});
+
+const doneOp = (
+  id: string,
+  localId: string,
+  notionPageId: string | null,
+  title: string,
+  minutes: number
+): PendingOp => ({
+  id,
+  kind: "done",
+  localId,
+  notionPageId,
+  title,
+  accumulatedMinutes: minutes,
+  attempts: 0,
+});
+
+const renameOp = (
+  id: string,
+  localId: string,
+  notionPageId: string | null,
+  title: string
+): PendingOp => ({
+  id,
+  kind: "rename",
+  localId,
+  notionPageId,
+  title,
+  attempts: 0,
+});
+
+const trashOp = (id: string, localId: string, notionPageId: string | null): PendingOp => ({
+  id,
+  kind: "trash",
+  localId,
+  notionPageId,
+  attempts: 0,
+});
+
+describe("coalesceOps", () => {
+  it("folds create + rename into one create with the rename title", () => {
+    const ops = [createOp("o1", "L", "A"), renameOp("o2", "L", null, "B")];
+    expect(coalesceOps(ops)).toEqual([
+      { opIds: ["o1", "o2"], kind: "create", localId: "L", title: "B" },
+    ]);
+  });
+
+  it("folds create + done into createDone with done title and minutes", () => {
+    const ops = [createOp("o1", "L", "A"), doneOp("o2", "L", null, "B", 25)];
+    expect(coalesceOps(ops)).toEqual([
+      { opIds: ["o1", "o2"], kind: "createDone", localId: "L", title: "B", accumulatedMinutes: 25 },
+    ]);
+  });
+
+  it("drops create → done → trash (page never existed)", () => {
+    const ops = [
+      createOp("o1", "L", "A"),
+      doneOp("o2", "L", null, "B", 25),
+      trashOp("o3", "L", null),
+    ];
+    expect(coalesceOps(ops)).toEqual([]);
+  });
+
+  it("drops create → trash (page never existed)", () => {
+    const ops = [createOp("o1", "L", "A"), trashOp("o2", "L", null)];
+    expect(coalesceOps(ops)).toEqual([]);
+  });
+
+  it("turns a done op with no page id and no create into createDone", () => {
+    const ops = [doneOp("o1", "L", null, "A", 10)];
+    expect(coalesceOps(ops)).toEqual([
+      { opIds: ["o1"], kind: "createDone", localId: "L", title: "A", accumulatedMinutes: 10 },
+    ]);
+  });
+
+  it("drops a rename with no page id and no create", () => {
+    const ops = [renameOp("o1", "L", null, "A")];
+    expect(coalesceOps(ops)).toEqual([]);
+  });
+
+  it("drops a trash with no page id and no create", () => {
+    const ops = [trashOp("o1", "L", null)];
+    expect(coalesceOps(ops)).toEqual([]);
+  });
+
+  it("emits done and rename wire ops separately when a page id is known", () => {
+    const ops = [doneOp("o1", "L", "P", "A", 5), renameOp("o2", "L", "P", "B")];
+    expect(coalesceOps(ops)).toEqual([
+      { opIds: ["o1"], kind: "done", localId: "L", notionPageId: "P", title: "A", accumulatedMinutes: 5 },
+      { opIds: ["o2"], kind: "rename", notionPageId: "P", title: "B" },
+    ]);
+  });
+
+  it("emits creates/dones first, then renames, then trashes across the whole queue", () => {
+    const ops = [
+      trashOp("t1", "LT", "PT"),
+      renameOp("r1", "LR", "PR", "R"),
+      doneOp("d1", "LD", "PD", "D", 1),
+      createOp("c1", "LC", "C"),
+    ];
+    const wire = coalesceOps(ops);
+    expect(wire.map((w) => w.kind)).toEqual(["create", "done", "rename", "trash"]);
+    expect(wire.map((w) => w.opIds)).toEqual([["c1"], ["d1"], ["r1"], ["t1"]]);
+  });
+
+  it("preserves first-appearance group order for independent tasks", () => {
+    const ops = [
+      createOp("o1", "L1", "A"),
+      createOp("o2", "L2", "B"),
+    ];
+    expect(coalesceOps(ops).map((w) => w.localId)).toEqual(["L1", "L2"]);
+  });
+
+  it("returns an empty array for no ops", () => {
+    expect(coalesceOps([])).toEqual([]);
+  });
+});
+
+describe("applyFlushResults", () => {
+  it("retires succeeded source ops and keeps failures with incremented attempts", () => {
+    const ops = [
+      createOp("o1", "L1", "A"),
+      doneOp("o2", "L2", null, "B", 5),
+    ];
+    const results: OpResult[] = [
+      { opIds: ["o1"], ok: true },
+      { opIds: ["o2"], ok: false, error: "boom" },
+    ];
+    const remaining = applyFlushResults(ops, results);
+
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0].id).toBe("o2");
+    expect((remaining[0] as any).attempts).toBe(1);
+    expect((remaining[0] as any).error).toBeUndefined();
+  });
+
+  it("backfills a create's pageId into same-localId done/rename/trash ops", () => {
+    const ops = [
+      createOp("o1", "L", "A"),
+      doneOp("o2", "L", null, "B", 5),
+      renameOp("o3", "L", null, "C"),
+    ];
+    const results: OpResult[] = [
+      { opIds: ["o1"], ok: true, pageId: "P1" },
+    ];
+    const remaining = applyFlushResults(ops, results);
+
+    expect(remaining).toHaveLength(2);
+    expect((remaining.find((op) => op.id === "o2") as any).notionPageId).toBe("P1");
+    expect((remaining.find((op) => op.id === "o3") as any).notionPageId).toBe("P1");
+  });
+
+  it("does not backfill into ops of a different localId", () => {
+    const ops = [
+      createOp("o1", "L1", "A"),
+      doneOp("o2", "L2", null, "B", 5),
+    ];
+    const results: OpResult[] = [{ opIds: ["o1"], ok: true, pageId: "P1" }];
+    const remaining = applyFlushResults(ops, results);
+
+    expect((remaining.find((op) => op.id === "o2") as any).notionPageId).toBeNull();
+  });
+});
+
+describe("filterFetched", () => {
+  it("drops fetched pages backed by queued done or trash ops", () => {
+    const pages = [
+      fetched({ localId: "f1", notionPageId: "page-1", title: "Done-soon" }),
+      fetched({ localId: "f2", notionPageId: "page-2", title: "Deleted-soon" }),
+      fetched({ localId: "f3", notionPageId: "page-3", title: "Safe" }),
+    ];
+    const ops = [
+      doneOp("o1", "whatever", "page-1", "Done-soon", 0),
+      trashOp("o2", "whatever", "page-2"),
+    ];
+    const kept = filterFetched(pages, ops);
+
+    expect(kept).toHaveLength(1);
+    expect(kept[0].title).toBe("Safe");
+  });
+
+  it("keeps fetched pages that have no pending op", () => {
+    const pages = [fetched({ title: "Safe" })];
+    expect(filterFetched(pages, [doneOp("o1", "x", "other-page", "y", 0)])).toEqual(pages);
+  });
+
+  it("returns all pages when there are no pending ops", () => {
+    const pages = [fetched(), fetched({ localId: "f2", title: "B" })];
+    expect(filterFetched(pages, [])).toEqual(pages);
+  });
+});
