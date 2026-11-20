@@ -35,3 +35,40 @@ export function toggleTask(task: Task): Task {
 export function addAccumulatedMinutes(task: Task, minutes: number): Task {
   return { ...task, accumulatedMinutes: task.accumulatedMinutes + minutes };
 }
+
+export function renameTask(task: Task, title: string): Task {
+  const trimmed = title.trim();
+  if (!trimmed) return task;
+  return { ...task, title: trimmed };
+}
+
+export function tasksToMarkdown(tasks: Task[]): string {
+  return tasks.map((task) => `- [${task.isChecked ? "x" : " "}] ${task.title}`).join("\n");
+}
+
+export function reconcileParsed(existing: Task[], parsed: Task[]): Task[] {
+  const used = new Array(existing.length).fill(false);
+  const reconciled: Task[] = [];
+
+  for (const parsedTask of parsed) {
+    const matchIdx = existing.findIndex(
+      (task, idx) => !used[idx] && task.title === parsedTask.title
+    );
+
+    if (matchIdx !== -1) {
+      used[matchIdx] = true;
+      const existingTask = existing[matchIdx];
+      reconciled.push({
+        localId: existingTask.localId,
+        notionPageId: existingTask.notionPageId,
+        title: parsedTask.title.trim(),
+        isChecked: parsedTask.isChecked,
+        accumulatedMinutes: existingTask.accumulatedMinutes,
+      });
+    } else {
+      reconciled.push({ ...parsedTask });
+    }
+  }
+
+  return reconciled;
+}
