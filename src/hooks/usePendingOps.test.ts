@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { usePendingOps } from "./usePendingOps";
-import type { PendingOp } from "./sync";
+import type { PendingOp } from "../lib/sync";
 
 const invoke = vi.fn();
 

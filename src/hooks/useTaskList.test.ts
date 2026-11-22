@@ -28,7 +28,7 @@ describe("useTaskList", () => {
   });
 
   it("adds tasks from pasted markdown", () => {
-    const { result } = renderHook(() => useTaskList(""));
+    const { result } = renderHook(() => useTaskList());
     act(() => result.current.addTaskList("- [ ] New task"));
 
     expect(result.current.tasks).toHaveLength(1);
@@ -58,7 +58,7 @@ describe("useTaskList", () => {
   });
 
   it("adds a single typed task with an auto-generated id", () => {
-    const { result } = renderHook(() => useTaskList(""));
+    const { result } = renderHook(() => useTaskList());
 
     act(() => result.current.addSingleTask("Quick note"));
 
@@ -73,7 +73,7 @@ describe("useTaskList", () => {
   });
 
   it("adds a single typed task with an explicit localId", () => {
-    const { result } = renderHook(() => useTaskList(""));
+    const { result } = renderHook(() => useTaskList());
 
     act(() => result.current.addSingleTask("Quick note", "custom-id"));
 
@@ -81,7 +81,7 @@ describe("useTaskList", () => {
   });
 
   it("ignores empty quick-add titles", () => {
-    const { result } = renderHook(() => useTaskList(""));
+    const { result } = renderHook(() => useTaskList());
 
     act(() => result.current.addSingleTask("   "));
 

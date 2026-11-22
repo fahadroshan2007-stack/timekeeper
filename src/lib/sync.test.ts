@@ -1,18 +1,9 @@
 import { describe, it, expect } from "vitest";
 import type { Task } from "./tasks";
-import type { PendingOp, WireOp, OpResult } from "./sync";
+import type { PendingOp, OpResult } from "./sync";
 import { coalesceOps, applyFlushResults, filterFetched } from "./sync";
 
-const local = (overrides: Partial<Task>): Task => ({
-  localId: "local-1",
-  notionPageId: null,
-  title: "Task",
-  isChecked: false,
-  accumulatedMinutes: 0,
-  ...overrides,
-});
-
-const fetched = (overrides: Partial<Task>): Task => ({
+const fetched = (overrides: Partial<Task> = {}): Task => ({
   localId: "page-1",
   notionPageId: "page-1",
   title: "Fetched",
@@ -116,7 +107,7 @@ describe("coalesceOps", () => {
   it("emits done and rename wire ops separately when a page id is known", () => {
     const ops = [doneOp("o1", "L", "P", "A", 5), renameOp("o2", "L", "P", "B")];
     expect(coalesceOps(ops)).toEqual([
-      { opIds: ["o1"], kind: "done", localId: "L", notionPageId: "P", title: "A", accumulatedMinutes: 5 },
+      { opIds: ["o1"], kind: "done", localId: "L", notionPageId: "P", accumulatedMinutes: 5 },
       { opIds: ["o2"], kind: "rename", notionPageId: "P", title: "B" },
     ]);
   });
@@ -138,7 +129,7 @@ describe("coalesceOps", () => {
       createOp("o1", "L1", "A"),
       createOp("o2", "L2", "B"),
     ];
-    expect(coalesceOps(ops).map((w) => w.localId)).toEqual(["L1", "L2"]);
+    expect(coalesceOps(ops).map((w) => ("localId" in w ? w.localId : ""))).toEqual(["L1", "L2"]);
   });
 
   it("returns an empty array for no ops", () => {
