@@ -211,7 +211,9 @@ describe("enqueueProgress", () => {
     act(() => result.current.enqueueProgress({ kind: "progress", localId: "L", notionPageId: null, title: "A", status: "In Progress", accumulatedMinutes: 10 }));
     expect(result.current.ops).toHaveLength(2);
 
-    act(() => result.current.enqueueProgress({ kind: "progress", localId: "L", notionPageId: null, title: "A", status: "Not Started", accumulatedMinutes: 10 }));
+    // Genuine status change with consistent state: accumulatedMinutes reset to 0
+    // means statusFor derives "Not Started" (minutes > 0 would give "In Progress").
+    act(() => result.current.enqueueProgress({ kind: "progress", localId: "L", notionPageId: null, title: "A", status: "Not Started", accumulatedMinutes: 0 }));
     expect(result.current.ops).toHaveLength(3);
   });
 
