@@ -86,7 +86,7 @@ export function coalesceOps(ops: PendingOp[]): WireOp[] {
     // No create for this task.
     for (const done of groupDones) {
       if (done.notionPageId) {
-        dones.push({ opIds: [done.id], kind: "done", localId, notionPageId: done.notionPageId, title: done.title, accumulatedMinutes: done.accumulatedMinutes });
+        dones.push({ opIds: [done.id], kind: "done", localId, notionPageId: done.notionPageId, accumulatedMinutes: done.accumulatedMinutes });
       } else {
         creates.push({ opIds: [done.id], kind: "createDone", localId, title: done.title, accumulatedMinutes: done.accumulatedMinutes });
       }
@@ -132,9 +132,9 @@ export function applyFlushResults(ops: PendingOp[], results: OpResult[]): Pendin
     .filter((op) => !succeededIds.has(op.id))
     .map((op) => {
       let next = op;
-      if (op.notionPageId === null) {
-        const pageId = pageIdByLocalId.get(op.localId);
-        if (pageId) next = { ...next, notionPageId: pageId };
+      if ("notionPageId" in next && next.notionPageId === null) {
+        const pageId = pageIdByLocalId.get(next.localId);
+        if (pageId) next = { ...next, notionPageId: pageId } as PendingOp;
       }
       if (failedIds.has(op.id)) next = { ...next, attempts: next.attempts + 1 };
       return next;

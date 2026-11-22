@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import type { PendingOp, WireOp, OpResult } from "../lib/sync";
+import type { PendingOp, OpResult } from "../lib/sync";
 import { coalesceOps, applyFlushResults } from "../lib/sync";
 
 export type EnqueueOp =
@@ -47,37 +47,47 @@ export function usePendingOps(args: { apiKey: string; databaseId: string }) {
 
   const enqueue = useCallback((enqueueOp: EnqueueOp) => {
     const id = crypto.randomUUID();
-    const base: PendingOp = {
-      id,
-      attempts: 0,
-      kind: enqueueOp.kind,
-      localId: enqueueOp.localId,
-      title: enqueueOp.title,
-    };
-
     let op: PendingOp;
+
     switch (enqueueOp.kind) {
       case "create":
-        op = base as PendingOp;
+        op = {
+          id,
+          kind: "create",
+          localId: enqueueOp.localId,
+          title: enqueueOp.title,
+          attempts: 0,
+        };
         break;
       case "done":
         op = {
-          ...base,
-          notionPageId: (enqueueOp as EnqueueOpDone).notionPageId,
-          accumulatedMinutes: (enqueueOp as EnqueueOpDone).accumulatedMinutes,
-        } as PendingOp;
+          id,
+          kind: "done",
+          localId: enqueueOp.localId,
+          notionPageId: enqueueOp.notionPageId,
+          title: enqueueOp.title,
+          accumulatedMinutes: enqueueOp.accumulatedMinutes,
+          attempts: 0,
+        };
         break;
       case "rename":
         op = {
-          ...base,
-          notionPageId: (enqueueOp as EnqueueOpRename).notionPageId,
-        } as PendingOp;
+          id,
+          kind: "rename",
+          localId: enqueueOp.localId,
+          notionPageId: enqueueOp.notionPageId,
+          title: enqueueOp.title,
+          attempts: 0,
+        };
         break;
       case "trash":
         op = {
-          ...base,
-          notionPageId: (enqueueOp as EnqueueOpTrash).notionPageId,
-        } as PendingOp;
+          id,
+          kind: "trash",
+          localId: enqueueOp.localId,
+          notionPageId: enqueueOp.notionPageId,
+          attempts: 0,
+        };
         break;
     }
 
