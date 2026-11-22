@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import type { PendingOp, OpResult, PageIdBackfill } from "../lib/sync";
+import type { PendingOp, OpResult, PageIdBackfill, ProgressStatus } from "../lib/sync";
 import { coalesceOps, applyFlushResults, extractPageIds } from "../lib/sync";
 
 export type EnqueueOp =
@@ -8,6 +8,20 @@ export type EnqueueOp =
   | { kind: "done"; localId: string; notionPageId: string | null; title: string; accumulatedMinutes: number }
   | { kind: "rename"; localId: string; notionPageId: string | null; title: string }
   | { kind: "trash"; localId: string; notionPageId: string | null };
+
+/**
+ * Args for enqueueing an undone-task progress write (design: event-driven
+ * autolog). `kind` is fixed to "progress"; dedupe identity is
+ * localId + notionPageId + status + accumulatedMinutes.
+ */
+export type EnqueueProgress = {
+  kind: "progress";
+  localId: string;
+  notionPageId: string | null;
+  title: string;
+  status: ProgressStatus;
+  accumulatedMinutes: number;
+};
 
 export interface FlushResult {
   ok: boolean;
@@ -98,6 +112,34 @@ export function usePendingOps(args: { apiKey: string; databaseId: string }) {
     setOps((prev) => [...prev, op]);
   }, []);
 
+  const enqueueProgress = useCallback((enqueueOp: EnqueueProgress) => {
+    const op: Extract<PendingOp, { kind: "progress" }> = {
+      id: crypto.randomUUID(),
+      kind: "progress",
+      localId: enqueueOp.localId,
+      notionPageId: enqueueOp.notionPageId,
+      title: enqueueOp.title,
+      status: enqueueOp.status,
+      accumulatedMinutes: enqueueOp.accumulatedMinutes,
+      attempts: 0,
+    };
+
+    setOps((prev) => {
+      // Dedupe against an identical pending op (design: skip when the same
+      // localId + notionPageId + status + accumulatedMinutes is already queued).
+      const existing = prev.find(
+        (op) =>
+          op.kind === "progress" &&
+          op.localId === enqueueOp.localId &&
+          op.notionPageId === enqueueOp.notionPageId &&
+          op.status === enqueueOp.status &&
+          op.accumulatedMinutes === enqueueOp.accumulatedMinutes
+      );
+      if (existing) return prev;
+      return [...prev, op];
+    });
+  }, []);
+
   const flush = useCallback(async (): Promise<FlushResult> => {
     const skip = (): FlushResult => ({ ok: true, failed: 0, skipped: true, backfills: [] });
 
@@ -137,5 +179,5 @@ export function usePendingOps(args: { apiKey: string; databaseId: string }) {
     }
   }, [ops, apiKey, databaseId]);
 
-  return { ops, enqueue, flush };
+  return { ops, enqueue, enqueueProgress, flush };
 }

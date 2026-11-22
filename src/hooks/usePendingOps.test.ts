@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { usePendingOps } from "./usePendingOps";
+import { usePendingOps, type EnqueueProgress } from "./usePendingOps";
 import type { PendingOp, OpResult } from "../lib/sync";
 
 const invoke = vi.fn();
@@ -182,5 +182,45 @@ describe("usePendingOps", () => {
     expect(out.skipped).toBe(false);
     expect(result.current.ops).toHaveLength(2);
     expect(invoke).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("enqueueProgress", () => {
+  it("enqueues an identical progress op only once", () => {
+    const { result } = renderHook(() => usePendingOps(creds));
+    const args: EnqueueProgress = {
+      kind: "progress",
+      localId: "L",
+      notionPageId: null,
+      title: "A",
+      status: "In Progress",
+      accumulatedMinutes: 5,
+    };
+
+    act(() => result.current.enqueueProgress(args));
+    act(() => result.current.enqueueProgress(args));
+
+    expect(result.current.ops).toHaveLength(1);
+    expect(result.current.ops[0]).toMatchObject(args);
+  });
+
+  it("enqueues another op when minutes or status change", () => {
+    const { result } = renderHook(() => usePendingOps(creds));
+
+    act(() => result.current.enqueueProgress({ kind: "progress", localId: "L", notionPageId: null, title: "A", status: "In Progress", accumulatedMinutes: 5 }));
+    act(() => result.current.enqueueProgress({ kind: "progress", localId: "L", notionPageId: null, title: "A", status: "In Progress", accumulatedMinutes: 10 }));
+    expect(result.current.ops).toHaveLength(2);
+
+    act(() => result.current.enqueueProgress({ kind: "progress", localId: "L", notionPageId: null, title: "A", status: "Not Started", accumulatedMinutes: 10 }));
+    expect(result.current.ops).toHaveLength(3);
+  });
+
+  it("does not dedupe progress ops for different tasks", () => {
+    const { result } = renderHook(() => usePendingOps(creds));
+
+    act(() => result.current.enqueueProgress({ kind: "progress", localId: "L1", notionPageId: null, title: "A", status: "In Progress", accumulatedMinutes: 5 }));
+    act(() => result.current.enqueueProgress({ kind: "progress", localId: "L2", notionPageId: null, title: "A", status: "In Progress", accumulatedMinutes: 5 }));
+
+    expect(result.current.ops).toHaveLength(2);
   });
 });
