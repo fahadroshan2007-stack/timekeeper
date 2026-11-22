@@ -15,8 +15,7 @@ interface ChassisProps {
   onResume: () => void;
   onReset: () => void;
   onStop: () => void;
-  logging: boolean;
-  onLog: () => void;
+  onOpenNotion: () => void;
   onSettings: () => void;
   onMinimize: () => void;
   onClose: () => void;
@@ -50,8 +49,7 @@ export default function Chassis({
   onResume,
   onReset,
   onStop,
-  logging,
-  onLog,
+  onOpenNotion,
   onSettings,
   onMinimize,
   onClose,
@@ -205,13 +203,12 @@ export default function Chassis({
         </button>
         <button
           type="button"
-          data-testid="key-log"
-          onClick={onLog}
-          disabled={logging}
-          title="Batch sync checked tasks to Notion"
+          data-testid="key-notion"
+          onClick={onOpenNotion}
+          title="Open the Notion database"
           className="tw-key tw-key-red"
         >
-          <span>{logging ? "LOGGING…" : "LOG"}</span>
+          <span>NOTION ↗</span>
         </button>
         <button
           type="button"
