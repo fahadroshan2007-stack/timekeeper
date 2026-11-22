@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { Task } from "./tasks";
-import type { PendingOp, OpResult } from "./sync";
-import { coalesceOps, applyFlushResults, filterFetched, extractPageIds } from "./sync";
+import type { ProgressStatus, PendingOp, OpResult } from "./sync";
+import { coalesceOps, applyFlushResults, filterFetched, extractPageIds, statusFor } from "./sync";
 
 const fetched = (overrides: Partial<Task> = {}): Task => ({
   localId: "page-1",
@@ -55,6 +55,24 @@ const trashOp = (id: string, localId: string, notionPageId: string | null): Pend
   kind: "trash",
   localId,
   notionPageId,
+  attempts: 0,
+});
+
+const progressOp = (
+  id: string,
+  localId: string,
+  notionPageId: string | null,
+  title: string,
+  status: ProgressStatus,
+  minutes: number
+): PendingOp => ({
+  id,
+  kind: "progress",
+  localId,
+  notionPageId,
+  title,
+  status,
+  accumulatedMinutes: minutes,
   attempts: 0,
 });
 
@@ -134,6 +152,78 @@ describe("coalesceOps", () => {
 
   it("returns an empty array for no ops", () => {
     expect(coalesceOps([])).toEqual([]);
+  });
+});
+
+describe("coalesceOps progress ops", () => {
+  it("folds create + progress into one createProgress", () => {
+    const ops = [createOp("o1", "L", "A"), progressOp("o2", "L", null, "B", "In Progress", 4)];
+    expect(coalesceOps(ops)).toEqual([
+      { opIds: ["o1", "o2"], kind: "createProgress", localId: "L", title: "B", status: "In Progress", accumulatedMinutes: 4 },
+    ]);
+  });
+
+  it("folds create + progress + rename into one createProgress with the rename title", () => {
+    const ops = [
+      createOp("o1", "L", "A"),
+      progressOp("o2", "L", null, "B", "In Progress", 4),
+      renameOp("o3", "L", null, "D"),
+    ];
+    expect(coalesceOps(ops)).toEqual([
+      { opIds: ["o1", "o2", "o3"], kind: "createProgress", localId: "L", title: "D", status: "In Progress", accumulatedMinutes: 4 },
+    ]);
+  });
+
+  it("folds create + progress + done into createDone (done wins)", () => {
+    const ops = [
+      createOp("o1", "L", "A"),
+      progressOp("o2", "L", null, "B", "In Progress", 4),
+      doneOp("o3", "L", null, "C", 5),
+    ];
+    expect(coalesceOps(ops)).toEqual([
+      { opIds: ["o1", "o3", "o2"], kind: "createDone", localId: "L", title: "C", accumulatedMinutes: 5 },
+    ]);
+  });
+
+  it("turns progress without a page id and without create into createProgress", () => {
+    const ops = [progressOp("o1", "L", null, "A", "Not Started", 0)];
+    expect(coalesceOps(ops)).toEqual([
+      { opIds: ["o1"], kind: "createProgress", localId: "L", title: "A", status: "Not Started", accumulatedMinutes: 0 },
+    ]);
+  });
+
+  it("emits progress as a PATCH wire op when the page id is known", () => {
+    const ops = [progressOp("o1", "L", "P", "A", "In Progress", 7)];
+    expect(coalesceOps(ops)).toEqual([
+      { opIds: ["o1"], kind: "progress", localId: "L", notionPageId: "P", status: "In Progress", accumulatedMinutes: 7 },
+    ]);
+  });
+
+  it("drops progress when a done exists for the same task", () => {
+    const ops = [doneOp("o1", "L", "P", "A", 5), progressOp("o2", "L", "P", "B", "In Progress", 3)];
+    expect(coalesceOps(ops)).toEqual([
+      { opIds: ["o1", "o2"], kind: "done", localId: "L", notionPageId: "P", accumulatedMinutes: 5 },
+    ]);
+  });
+
+  it("emits create, createProgress, progress, done, trash in wire order across the queue", () => {
+    const ops = [
+      trashOp("t1", "LT", "PT"),
+      progressOp("p1", "LPR", "PR", "A", "In Progress", 2),
+      doneOp("d1", "LD", "PD", "D", 1),
+      createOp("c1", "LC", "C"),
+      createOp("c2", "LC2", "C2"),
+      progressOp("p2", "LC2", null, "C2b", "Not Started", 0),
+    ];
+    expect(coalesceOps(ops).map((w) => w.kind)).toEqual(["create", "createProgress", "progress", "done", "trash"]);
+  });
+});
+
+describe("statusFor", () => {
+  it("maps minutes to status literals", () => {
+    expect(statusFor(0)).toBe("Not Started");
+    expect(statusFor(1)).toBe("In Progress");
+    expect(statusFor(42)).toBe("In Progress");
   });
 });
 

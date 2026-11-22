@@ -1,14 +1,24 @@
 import type { Task } from "./tasks";
 
+export type ProgressStatus = "In Progress" | "Not Started";
+
+export const statusFor = (minutes: number): ProgressStatus =>
+  minutes > 0 ? "In Progress" : "Not Started";
+
 export type PendingOp =
   | { id: string; kind: "create"; localId: string; title: string; attempts: number }
   | { id: string; kind: "done"; localId: string; notionPageId: string | null; title: string; accumulatedMinutes: number; attempts: number }
   | { id: string; kind: "rename"; localId: string; notionPageId: string | null; title: string; attempts: number }
-  | { id: string; kind: "trash"; localId: string; notionPageId: string | null; attempts: number };
+  | { id: string; kind: "trash"; localId: string; notionPageId: string | null; attempts: number }
+  | { id: string; kind: "progress"; localId: string; notionPageId: string | null; title: string; status: ProgressStatus; accumulatedMinutes: number; attempts: number };
+
+type ProgressOp = Extract<PendingOp, { kind: "progress" }>;
 
 export type WireOp =
   | { opIds: string[]; kind: "create"; localId: string; title: string }
   | { opIds: string[]; kind: "createDone"; localId: string; title: string; accumulatedMinutes: number }
+  | { opIds: string[]; kind: "createProgress"; localId: string; title: string; status: ProgressStatus; accumulatedMinutes: number }
+  | { opIds: string[]; kind: "progress"; localId: string; notionPageId: string; status: ProgressStatus; accumulatedMinutes: number }
   | { opIds: string[]; kind: "done"; localId: string; notionPageId: string; accumulatedMinutes: number }
   | { opIds: string[]; kind: "rename"; notionPageId: string; title: string }
   | { opIds: string[]; kind: "trash"; notionPageId: string };
@@ -61,6 +71,8 @@ export function coalesceOps(ops: PendingOp[]): WireOp[] {
   }
 
   const creates: WireOp[] = [];
+  const createProgresses: WireOp[] = [];
+  const progresses: WireOp[] = [];
   const dones: WireOp[] = [];
   const renames: WireOp[] = [];
   const trashes: WireOp[] = [];
@@ -71,21 +83,38 @@ export function coalesceOps(ops: PendingOp[]): WireOp[] {
     const groupDones = group.filter((op) => op.kind === "done");
     const groupRenames = group.filter((op) => op.kind === "rename");
     const groupTrashes = group.filter((op) => op.kind === "trash");
+    const groupProgresses = group.filter((op): op is ProgressOp => op.kind === "progress");
     const createIds = groupCreates.map((op) => op.id);
 
     if (groupCreates.length > 0) {
-      // create + done + trash, or create + trash ⇒ the page never existed
+      // create + trash ⇒ the page never existed; progress is superseded too
       if (groupTrashes.length > 0) {
         continue;
       }
       if (groupDones.length > 0) {
+        // Done wins: undone writes only touch Status + Time (Min); Logged At is stamped now
         const done = groupDones[groupDones.length - 1];
         creates.push({
-          opIds: [...createIds, ...groupDones.map((op) => op.id)],
+          opIds: [...createIds, ...groupDones.map((op) => op.id), ...groupProgresses.map((op) => op.id)],
           kind: "createDone",
           localId,
           title: lastOf(groupRenames, (o) => o.title) ?? done.title,
           accumulatedMinutes: done.accumulatedMinutes,
+        });
+        continue;
+      }
+      if (groupProgresses.length > 0) {
+        // create + progress ⇒ createProgress (fold); last status/minutes, last rename title wins
+        const last = groupProgresses[groupProgresses.length - 1];
+        createProgresses.push({
+          opIds: group
+            .filter((op) => op.kind === "create" || op.kind === "progress" || op.kind === "rename")
+            .map((op) => op.id),
+          kind: "createProgress",
+          localId,
+          title: lastOf(groupRenames, (o) => o.title) ?? last.title,
+          status: last.status,
+          accumulatedMinutes: last.accumulatedMinutes,
         });
         continue;
       }
@@ -105,11 +134,40 @@ export function coalesceOps(ops: PendingOp[]): WireOp[] {
     }
 
     // No create for this task.
+    const lastDone = groupDones[groupDones.length - 1];
     for (const done of groupDones) {
+      // Done supersedes progress: progress ops are retired with the done wire
+      const opIds = done === lastDone ? [done.id, ...groupProgresses.map((op) => op.id)] : [done.id];
       if (done.notionPageId) {
-        dones.push({ opIds: [done.id], kind: "done", localId, notionPageId: done.notionPageId, accumulatedMinutes: done.accumulatedMinutes });
+        dones.push({ opIds, kind: "done", localId, notionPageId: done.notionPageId, accumulatedMinutes: done.accumulatedMinutes });
       } else {
-        creates.push({ opIds: [done.id], kind: "createDone", localId, title: done.title, accumulatedMinutes: done.accumulatedMinutes });
+        creates.push({ opIds, kind: "createDone", localId, title: done.title, accumulatedMinutes: done.accumulatedMinutes });
+      }
+    }
+    if (!lastDone) {
+      for (const progress of groupProgresses) {
+        if (progress.notionPageId) {
+          progresses.push({
+            opIds: [progress.id],
+            kind: "progress",
+            localId,
+            notionPageId: progress.notionPageId,
+            status: progress.status,
+            accumulatedMinutes: progress.accumulatedMinutes,
+          });
+        }
+      }
+      const nullProgresses = groupProgresses.filter((op) => !op.notionPageId);
+      if (nullProgresses.length > 0) {
+        const last = nullProgresses[nullProgresses.length - 1];
+        createProgresses.push({
+          opIds: [...nullProgresses.map((op) => op.id), ...groupRenames.filter((op) => !op.notionPageId).map((op) => op.id)],
+          kind: "createProgress",
+          localId,
+          title: lastOf(groupRenames, (o) => o.title) ?? last.title,
+          status: last.status,
+          accumulatedMinutes: last.accumulatedMinutes,
+        });
       }
     }
     for (const rename of groupRenames) {
@@ -124,7 +182,7 @@ export function coalesceOps(ops: PendingOp[]): WireOp[] {
     }
   }
 
-  return [...creates, ...dones, ...renames, ...trashes];
+  return [...creates, ...createProgresses, ...progresses, ...dones, ...renames, ...trashes];
 }
 
 export function applyFlushResults(ops: PendingOp[], results: OpResult[]): PendingOp[] {
