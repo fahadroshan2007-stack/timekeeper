@@ -1,29 +1,25 @@
-import { describe, it, expect } from "vitest";
-import { planBatchSync } from "./notion";
-import type { Task } from "./tasks";
+import { describe, it, expect, vi } from "vitest";
+import { flushOps } from "./notion";
 
-const baseTask = (overrides: Partial<Task>): Task => ({
-  localId: "task-1",
-  notionPageId: null,
-  title: "Task",
-  isChecked: false,
-  accumulatedMinutes: 0,
-  ...overrides,
-});
+const invoke = vi.fn();
 
-describe("planBatchSync", () => {
-  it("plans a PATCH for checked tasks that exist in Notion", () => {
-    const tasks = [baseTask({ isChecked: true, notionPageId: "page-1" })];
-    expect(planBatchSync(tasks)).toEqual([{ task: tasks[0], type: "patch" }]);
-  });
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: (cmd: string, args?: unknown) => invoke(cmd, args),
+}));
 
-  it("plans a POST for checked tasks that were typed locally", () => {
-    const tasks = [baseTask({ isChecked: true, notionPageId: null })];
-    expect(planBatchSync(tasks)).toEqual([{ task: tasks[0], type: "create" }]);
-  });
+describe("flushOps", () => {
+  it("invokes notion_flush_ops with the given ops and credentials", async () => {
+    const ops = [{ opIds: ["o1"], kind: "create" as const, localId: "L", title: "A" }];
+    const results = [{ opIds: ["o1"], ok: true, pageId: "P1" }];
+    invoke.mockResolvedValueOnce(results);
 
-  it("skips unchecked tasks", () => {
-    const tasks = [baseTask({ isChecked: false, notionPageId: "page-2" })];
-    expect(planBatchSync(tasks)).toEqual([]);
+    const out = await flushOps({ apiKey: "key", databaseId: "db", ops });
+
+    expect(invoke).toHaveBeenCalledWith("notion_flush_ops", {
+      apiKey: "key",
+      databaseId: "db",
+      ops,
+    });
+    expect(out).toEqual(results);
   });
 });
