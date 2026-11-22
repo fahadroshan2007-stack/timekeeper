@@ -1,22 +1,51 @@
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct NotionTaskPayload {
-    pub task_id: String,
-    pub notion_page_id: Option<String>,
-    pub title: String,
-    pub is_checked: bool,
-    pub accumulated_minutes: i64,
+#[derive(Debug, Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum WireOp {
+    Create {
+        #[serde(rename = "opIds")]
+        op_ids: Vec<String>,
+        title: String,
+    },
+    CreateDone {
+        #[serde(rename = "opIds")]
+        op_ids: Vec<String>,
+        title: String,
+        #[serde(rename = "accumulatedMinutes")]
+        accumulated_minutes: i64,
+    },
+    Done {
+        #[serde(rename = "opIds")]
+        op_ids: Vec<String>,
+        #[serde(rename = "notionPageId")]
+        notion_page_id: String,
+        #[serde(rename = "accumulatedMinutes")]
+        accumulated_minutes: i64,
+    },
+    Rename {
+        #[serde(rename = "opIds")]
+        op_ids: Vec<String>,
+        #[serde(rename = "notionPageId")]
+        notion_page_id: String,
+        title: String,
+    },
+    Trash {
+        #[serde(rename = "opIds")]
+        op_ids: Vec<String>,
+        #[serde(rename = "notionPageId")]
+        notion_page_id: String,
+    },
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct NotionSyncResult {
-    pub task_id: String,
+pub struct OpResult {
+    pub op_ids: Vec<String>,
     pub ok: bool,
     pub error: Option<String>,
+    pub page_id: Option<String>,
 }
 
 fn now_iso() -> String {
@@ -46,85 +75,162 @@ async fn response_error(resp: reqwest::Response) -> String {
     }
 }
 
+fn title_prop(title: &str) -> serde_json::Value {
+    serde_json::json!({ "title": [{ "text": { "content": title } }] })
+}
+
+fn done_properties(title: &str, accumulated_minutes: i64, now: &str) -> serde_json::Value {
+    serde_json::json!({
+        "Task": { "title": [{ "text": { "content": title } }] },
+        "Status": { "status": { "name": "Done" } },
+        "Time (Min)": { "number": accumulated_minutes },
+        "Logged At": { "date": { "start": now } }
+    })
+}
+
+fn patch_body(properties: serde_json::Value) -> serde_json::Value {
+    serde_json::json!({ "properties": properties })
+}
+
+async fn send_patch(
+    client: &reqwest::Client,
+    url: &str,
+    body: serde_json::Value,
+    api_key: &str,
+) -> Result<reqwest::Response, String> {
+    client
+        .patch(url)
+        .json(&body)
+        .bearer_auth(api_key)
+        .send()
+        .await
+        .map_err(|e| format!("Notion PATCH error: {}", e))
+}
+
+async fn send_post(
+    client: &reqwest::Client,
+    url: &str,
+    body: serde_json::Value,
+    api_key: &str,
+) -> Result<reqwest::Response, String> {
+    client
+        .post(url)
+        .json(&body)
+        .bearer_auth(api_key)
+        .send()
+        .await
+        .map_err(|e| format!("Notion POST error: {}", e))
+}
+
 #[tauri::command]
-pub async fn notion_log_batch(
-    tasks: Vec<NotionTaskPayload>,
+pub async fn notion_flush_ops(
+    ops: Vec<WireOp>,
     api_key: String,
     database_id: String,
-) -> Result<Vec<NotionSyncResult>, String> {
+) -> Result<Vec<OpResult>, String> {
     let client = build_client();
-    let mut results: Vec<NotionSyncResult> = Vec::with_capacity(tasks.len());
+    let mut results: Vec<OpResult> = Vec::with_capacity(ops.len());
 
-    for task in tasks {
-        let body = serde_json::json!({
-            "properties": {
-                "Task": { "title": [{ "text": { "content": task.title } }] },
-                "Status": { "status": { "name": "Done" } },
-                "Time (Min)": { "number": task.accumulated_minutes },
-                "Logged At": { "date": { "start": now_iso() } }
-            }
-        });
-
-        let result = match &task.notion_page_id {
-            Some(page_id) => {
-                let url = format!("https://api.notion.com/v1/pages/{}", page_id);
-                let response = client
-                    .patch(&url)
-                    .json(&body)
-                    .bearer_auth(&api_key)
-                    .send()
-                    .await;
-                match response {
-                    Ok(resp) if resp.status().is_success() => NotionSyncResult {
-                        task_id: task.task_id.clone(),
-                        ok: true,
-                        error: None,
-                    },
-                    Ok(resp) => NotionSyncResult {
-                        task_id: task.task_id.clone(),
-                        ok: false,
-                        error: Some(response_error(resp).await),
-                    },
-                    Err(e) => NotionSyncResult {
-                        task_id: task.task_id.clone(),
-                        ok: false,
-                        error: Some(format!("Notion PATCH error: {}", e)),
-                    },
-                }
-            }
-            None => {
-                let create_body = serde_json::json!({
+    for op in ops {
+        let (op_ids, outcome): (Vec<String>, Result<Option<String>, String>) = match &op {
+            WireOp::Create {
+                op_ids,
+                title,
+                ..
+            } => {
+                let body = serde_json::json!({
                     "parent": { "database_id": database_id },
-                    "properties": body["properties"].clone(),
+                    "properties": { "Task": title_prop(title) }
                 });
-                let url = "https://api.notion.com/v1/pages".to_string();
-                let response = client
-                    .post(&url)
-                    .json(&create_body)
-                    .bearer_auth(&api_key)
-                    .send()
-                    .await;
-                match response {
-                    Ok(resp) if resp.status().is_success() => NotionSyncResult {
-                        task_id: task.task_id.clone(),
-                        ok: true,
-                        error: None,
-                    },
-                    Ok(resp) => NotionSyncResult {
-                        task_id: task.task_id.clone(),
-                        ok: false,
-                        error: Some(response_error(resp).await),
-                    },
-                    Err(e) => NotionSyncResult {
-                        task_id: task.task_id.clone(),
-                        ok: false,
-                        error: Some(format!("Notion POST error: {}", e)),
-                    },
-                }
+                let outcome = match send_post(&client, "https://api.notion.com/v1/pages", body, &api_key).await {
+                    Ok(resp) if resp.status().is_success() => {
+                        match resp.json::<serde_json::Value>().await {
+                            Ok(json) => Ok(json.get("id").and_then(|v| v.as_str()).map(String::from)),
+                            Err(e) => Err(format!("Notion response parse error: {}", e)),
+                        }
+                    }
+                    Ok(resp) => Err(response_error(resp).await),
+                    Err(e) => Err(e),
+                };
+                (op_ids.clone(), outcome)
+            }
+            WireOp::CreateDone {
+                op_ids,
+                title,
+                accumulated_minutes,
+                ..
+            } => {
+                let now = now_iso();
+                let body = serde_json::json!({
+                    "parent": { "database_id": database_id },
+                    "properties": done_properties(title, *accumulated_minutes, &now)
+                });
+                let outcome = match send_post(&client, "https://api.notion.com/v1/pages", body, &api_key).await {
+                    Ok(resp) if resp.status().is_success() => {
+                        match resp.json::<serde_json::Value>().await {
+                            Ok(json) => Ok(json.get("id").and_then(|v| v.as_str()).map(String::from)),
+                            Err(e) => Err(format!("Notion response parse error: {}", e)),
+                        }
+                    }
+                    Ok(resp) => Err(response_error(resp).await),
+                    Err(e) => Err(e),
+                };
+                (op_ids.clone(), outcome)
+            }
+            WireOp::Done {
+                op_ids,
+                notion_page_id,
+                accumulated_minutes,
+                ..
+            } => {
+                let now = now_iso();
+                let properties = serde_json::json!({
+                    "Status": { "status": { "name": "Done" } },
+                    "Time (Min)": { "number": accumulated_minutes },
+                    "Logged At": { "date": { "start": now } }
+                });
+                let url = format!("https://api.notion.com/v1/pages/{}", notion_page_id);
+                let outcome = match send_patch(&client, &url, patch_body(properties), &api_key).await {
+                    Ok(resp) if resp.status().is_success() => Ok(None),
+                    Ok(resp) => Err(response_error(resp).await),
+                    Err(e) => Err(e),
+                };
+                (op_ids.clone(), outcome)
+            }
+            WireOp::Rename {
+                op_ids,
+                notion_page_id,
+                title,
+            } => {
+                let properties = serde_json::json!({ "Task": title_prop(title) });
+                let url = format!("https://api.notion.com/v1/pages/{}", notion_page_id);
+                let outcome = match send_patch(&client, &url, patch_body(properties), &api_key).await {
+                    Ok(resp) if resp.status().is_success() => Ok(None),
+                    Ok(resp) => Err(response_error(resp).await),
+                    Err(e) => Err(e),
+                };
+                (op_ids.clone(), outcome)
+            }
+            WireOp::Trash {
+                op_ids,
+                notion_page_id,
+            } => {
+                let url = format!("https://api.notion.com/v1/pages/{}", notion_page_id);
+                let outcome = match send_patch(&client, &url, serde_json::json!({ "archived": true }), &api_key).await {
+                    Ok(resp) if resp.status().is_success() => Ok(None),
+                    Ok(resp) => Err(response_error(resp).await),
+                    Err(e) => Err(e),
+                };
+                (op_ids.clone(), outcome)
             }
         };
 
-        results.push(result);
+        results.push(OpResult {
+            op_ids,
+            ok: outcome.is_ok(),
+            error: outcome.as_ref().err().cloned(),
+            page_id: outcome.unwrap_or(None),
+        });
     }
 
     Ok(results)
