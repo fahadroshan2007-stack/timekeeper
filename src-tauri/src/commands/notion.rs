@@ -16,11 +16,28 @@ pub enum WireOp {
         #[serde(rename = "accumulatedMinutes")]
         accumulated_minutes: i64,
     },
+    CreateProgress {
+        #[serde(rename = "opIds")]
+        op_ids: Vec<String>,
+        title: String,
+        status: String,
+        #[serde(rename = "accumulatedMinutes")]
+        accumulated_minutes: i64,
+    },
     Done {
         #[serde(rename = "opIds")]
         op_ids: Vec<String>,
         #[serde(rename = "notionPageId")]
         notion_page_id: String,
+        #[serde(rename = "accumulatedMinutes")]
+        accumulated_minutes: i64,
+    },
+    Progress {
+        #[serde(rename = "opIds")]
+        op_ids: Vec<String>,
+        #[serde(rename = "notionPageId")]
+        notion_page_id: String,
+        status: String,
         #[serde(rename = "accumulatedMinutes")]
         accumulated_minutes: i64,
     },
@@ -85,6 +102,14 @@ fn done_properties(title: &str, accumulated_minutes: i64, now: &str) -> serde_js
         "Status": { "status": { "name": "Done" } },
         "Time (Min)": { "number": accumulated_minutes },
         "Logged At": { "date": { "start": now } }
+    })
+}
+
+fn progress_properties(title: &str, status: &str, accumulated_minutes: i64) -> serde_json::Value {
+    serde_json::json!({
+        "Task": title_prop(title),
+        "Status": { "status": { "name": status } },
+        "Time (Min)": { "number": accumulated_minutes }
     })
 }
 
@@ -177,6 +202,29 @@ pub async fn notion_flush_ops(
                 };
                 (op_ids.clone(), outcome)
             }
+            WireOp::CreateProgress {
+                op_ids,
+                title,
+                status,
+                accumulated_minutes,
+                ..
+            } => {
+                let body = serde_json::json!({
+                    "parent": { "database_id": database_id },
+                    "properties": progress_properties(title, status, *accumulated_minutes)
+                });
+                let outcome = match send_post(&client, "https://api.notion.com/v1/pages", body, &api_key).await {
+                    Ok(resp) if resp.status().is_success() => {
+                        match resp.json::<serde_json::Value>().await {
+                            Ok(json) => Ok(json.get("id").and_then(|v| v.as_str()).map(String::from)),
+                            Err(e) => Err(format!("Notion response parse error: {}", e)),
+                        }
+                    }
+                    Ok(resp) => Err(response_error(resp).await),
+                    Err(e) => Err(e),
+                };
+                (op_ids.clone(), outcome)
+            }
             WireOp::Done {
                 op_ids,
                 notion_page_id,
@@ -188,6 +236,25 @@ pub async fn notion_flush_ops(
                     "Status": { "status": { "name": "Done" } },
                     "Time (Min)": { "number": accumulated_minutes },
                     "Logged At": { "date": { "start": now } }
+                });
+                let url = format!("https://api.notion.com/v1/pages/{}", notion_page_id);
+                let outcome = match send_patch(&client, &url, patch_body(properties), &api_key).await {
+                    Ok(resp) if resp.status().is_success() => Ok(None),
+                    Ok(resp) => Err(response_error(resp).await),
+                    Err(e) => Err(e),
+                };
+                (op_ids.clone(), outcome)
+            }
+            WireOp::Progress {
+                op_ids,
+                notion_page_id,
+                status,
+                accumulated_minutes,
+                ..
+            } => {
+                let properties = serde_json::json!({
+                    "Status": { "status": { "name": status } },
+                    "Time (Min)": { "number": accumulated_minutes }
                 });
                 let url = format!("https://api.notion.com/v1/pages/{}", notion_page_id);
                 let outcome = match send_patch(&client, &url, patch_body(properties), &api_key).await {
