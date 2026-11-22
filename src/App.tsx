@@ -1,27 +1,32 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import Paper from "./components/Paper";
 import Roller from "./components/Roller";
 import Chassis from "./components/Chassis";
 import SettingsModal from "./components/SettingsModal";
 import SessionEndPrompt from "./components/SessionEndPrompt";
 import { useTaskList } from "./hooks/useTaskList";
+import { usePendingOps } from "./hooks/usePendingOps";
 import { useTimekeeperSession } from "./hooks/useTimekeeperSession";
 import { attachChassisDrag } from "./lib/windowDrag";
-import { fetchIncompleteTasks, runBatchSync } from "./lib/notion";
+import { fetchIncompleteTasks } from "./lib/notion";
+import { filterFetched } from "./lib/sync";
+import { tasksToMarkdown, type Task } from "./lib/tasks";
 import type { TimekeeperMode } from "./lib/timekeeper";
 
 const API_KEY_STORAGE = "timekeeper.notion.apiKey";
 const DB_ID_STORAGE = "timekeeper.notion.databaseId";
+const MARKDOWN_STORAGE = "timekeeper.markdown.v1";
 const TOAST_MS = 4000;
 
-const SAMPLE_MARKDOWN =
-  "- [ ] Study for exam\n- [ ] Read 20 pages\n- [ ] Practice problems";
-
 export default function App() {
-  const [markdown, setMarkdown] = useState(SAMPLE_MARKDOWN);
+  const [markdown, setMarkdown] = useState(
+    () => localStorage.getItem(MARKDOWN_STORAGE) ?? ""
+  );
   const [showInput, setShowInput] = useState(false);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
+  const [vanishingTasks, setVanishingTasks] = useState<Task[]>([]);
   const [apiKey, setApiKey] = useState(
     () => localStorage.getItem(API_KEY_STORAGE) ?? ""
   );
@@ -30,8 +35,6 @@ export default function App() {
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const [logging, setLogging] = useState(false);
-  const [loggingIds, setLoggingIds] = useState<Set<string>>(new Set());
   const [mode, setMode] = useState<TimekeeperMode>("timer");
   const [timerPreset, setTimerPreset] = useState(25);
   const [theme, setTheme] = useState<"espresso" | "late">(() =>
@@ -54,7 +57,12 @@ export default function App() {
     removeTask,
     mergeFetched,
     addSingleTask,
-  } = useTaskList(SAMPLE_MARKDOWN);
+    renameTask,
+  } = useTaskList();
+  const { ops, enqueue, flush } = usePendingOps({ apiKey, databaseId });
+  const opsRef = useRef(ops);
+  opsRef.current = ops;
+  const flushNow = useCallback(async () => flush(), [flush]);
   const session = useTimekeeperSession({ mode, initialSeconds: timerPreset * 60 });
 
   const chassisRef = useRef<HTMLDivElement>(null);
@@ -65,6 +73,19 @@ export default function App() {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), TOAST_MS);
   }, []);
+
+  // Persist the raw markdown buffer independently of the rendered task list.
+  useEffect(() => {
+    localStorage.setItem(MARKDOWN_STORAGE, markdown);
+  }, [markdown]);
+
+  // Keep the markdown buffer in sync with task edits (check/delete/rename/quick-add/merge).
+  const prevTasksRef = useRef(tasks);
+  useEffect(() => {
+    if (prevTasksRef.current === tasks) return;
+    prevTasksRef.current = tasks;
+    setMarkdown(tasksToMarkdown(tasks));
+  }, [tasks]);
 
   // Drag the widget by grabbing the chassis (non-interactive area).
   useEffect(() => {
@@ -86,7 +107,8 @@ export default function App() {
       }
       try {
         const fetched = await fetchIncompleteTasks({ apiKey: key, databaseId: dbId });
-        mergeFetched(fetched);
+        // Never resurrect a page that backs a queued done/trash op.
+        mergeFetched(filterFetched(fetched, opsRef.current));
         if (announce) {
           showToast(
             fetched.length === 0
@@ -103,12 +125,25 @@ export default function App() {
     [apiKey, databaseId, mergeFetched, showToast]
   );
 
-  // Load incomplete Notion tasks on mount (if credentials are stored).
+  // Flush queued ops in the background every 30 s.
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      void flushNow();
+    }, 30000);
+    return () => window.clearInterval(id);
+  }, [flushNow]);
+
+  // On launch: flush anything queued while offline, then pull fresh tasks.
   const didLoad = useRef(false);
   useEffect(() => {
     if (didLoad.current) return;
     didLoad.current = true;
-    if (apiKey && databaseId) refreshFromNotion(apiKey, databaseId, false);
+    if (apiKey && databaseId) {
+      void (async () => {
+        await flushNow();
+        await refreshFromNotion(apiKey, databaseId, false);
+      })();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -128,18 +163,88 @@ export default function App() {
     setActiveTaskId((prev) => (prev === taskId ? null : taskId));
   }, []);
 
+  const handleToggleTask = useCallback(
+    (taskId: string) => {
+      const task = tasks.find((t) => t.localId === taskId);
+      if (!task) return;
+      if (task.isChecked) {
+        // Pasted checked rows can be unchecked.
+        toggleTask(taskId);
+        return;
+      }
+      enqueue({
+        kind: "done",
+        localId: task.localId,
+        notionPageId: task.notionPageId,
+        title: task.title,
+        accumulatedMinutes: task.accumulatedMinutes,
+      });
+      setVanishingTasks((v) => [...v, { ...task, isChecked: true }]);
+      removeTask(taskId);
+      window.setTimeout(() => {
+        setVanishingTasks((v) => v.filter((t) => t.localId !== taskId));
+      }, 450);
+    },
+    [tasks, enqueue, toggleTask, removeTask]
+  );
+
+  const handleRenameTask = useCallback(
+    (taskId: string, title: string) => {
+      const task = tasks.find((t) => t.localId === taskId);
+      const trimmed = title.trim();
+      if (!task || !trimmed) return;
+      renameTask(taskId, trimmed);
+      enqueue({
+        kind: "rename",
+        localId: taskId,
+        notionPageId: task.notionPageId,
+        title: trimmed,
+      });
+    },
+    [tasks, renameTask, enqueue]
+  );
+
+  const handleDeleteTask = useCallback(
+    (taskId: string) => {
+      const task = tasks.find((t) => t.localId === taskId);
+      if (!task) return;
+      enqueue({
+        kind: "trash",
+        localId: taskId,
+        notionPageId: task.notionPageId,
+      });
+      removeTask(taskId);
+    },
+    [tasks, enqueue, removeTask]
+  );
+
   const handleQuickAdd = useCallback(
     (title: string) => {
-      addSingleTask(title);
+      const id = crypto.randomUUID();
+      addSingleTask(title, id);
+      if (!title.trim()) return;
+      enqueue({ kind: "create", localId: id, title: title.trim() });
       // Keep the raw markdown in sync so a later DONE (RENDER) can't drop it.
       setMarkdown((prev) => {
         const trimmed = title.trim();
-        if (!trimmed) return prev;
         const line = `- [ ] ${trimmed}`;
         return prev.trim() ? `${prev.replace(/\s+$/, "")}\n${line}` : line;
       });
     },
-    [addSingleTask]
+    [addSingleTask, enqueue]
+  );
+
+  const handleRefresh = useCallback(
+    async (key: string, dbId: string, announce: boolean) => {
+      if (!key || !dbId) {
+        if (announce) showToast("Set your Notion key + database in ••• first.");
+        return;
+      }
+      const result = await flushNow();
+      if (!result.ok && announce) showToast("SYNC FAILED — WILL RETRY");
+      await refreshFromNotion(key, dbId, announce);
+    },
+    [flushNow, refreshFromNotion, showToast]
   );
 
   const handleSaveSettings = useCallback(
@@ -150,10 +255,20 @@ export default function App() {
       localStorage.setItem(DB_ID_STORAGE, dbId);
       setSettingsOpen(false);
       showToast("Settings saved. Fetching tasks…");
-      refreshFromNotion(key, dbId, true);
+      void handleRefresh(key, dbId, true);
     },
-    [refreshFromNotion, showToast]
+    [handleRefresh, showToast]
   );
+
+  const openNotionDb = useCallback(() => {
+    if (!databaseId) {
+      showToast("SET YOUR NOTION KEY IN ••• FIRST");
+      return;
+    }
+    openUrl(`https://www.notion.so/${databaseId.replace(/-/g, "")}`).catch(() =>
+      showToast("COULDN'T OPEN NOTION")
+    );
+  }, [databaseId, showToast]);
 
   const handleMinimize = useCallback(() => {
     getCurrentWindow()
@@ -166,43 +281,6 @@ export default function App() {
       .close()
       .catch((error) => showToast(`Close failed: ${String(error)}`));
   }, [showToast]);
-
-  const handleLog = useCallback(async () => {
-    const checked = tasks.filter((task) => task.isChecked);
-    if (checked.length === 0) {
-      showToast("NO CHECKED TASKS TO LOG");
-      return;
-    }
-    if (!apiKey || !databaseId) {
-      showToast("SET YOUR NOTION KEY IN ••• FIRST");
-      return;
-    }
-    setLogging(true);
-    try {
-      const results = await runBatchSync({ apiKey, databaseId, tasks: checked });
-      const okIds = results.filter((r) => r.ok).map((r) => r.taskId);
-      const failed = results.filter((r) => !r.ok);
-      // Roll the synced rows up before removing them from the paper.
-      setLoggingIds(new Set(okIds));
-      window.setTimeout(() => {
-        for (const id of okIds) removeTask(id);
-        setLoggingIds(new Set());
-      }, 300);
-      if (failed.length > 0) {
-        const first = failed[0];
-        showToast(`SYNC FAILED ×${failed.length} — KEPT ON PAPER`);
-        console.error("Notion sync failures:", first.error);
-      } else {
-        showToast(`SYNCED ${okIds.length} TO NOTION ✓`);
-      }
-    } catch (error) {
-      showToast(
-        `NOTION SYNC FAILED: ${error instanceof Error ? error.message : String(error)}`
-      );
-    } finally {
-      setLogging(false);
-    }
-  }, [tasks, apiKey, databaseId, removeTask, showToast]);
 
   const activeTask = tasks.find((task) => task.localId === activeTaskId) ?? null;
   const taskOptions = tasks.map(({ localId, title }) => ({ localId, title }));
@@ -229,14 +307,16 @@ export default function App() {
         onMarkdownChange={setMarkdown}
         showInput={showInput}
         tasks={tasks}
+        vanishingTasks={vanishingTasks}
         activeTaskId={activeTaskId}
-        onToggleTask={toggleTask}
+        onToggleTask={handleToggleTask}
         onActivateTask={handleActivate}
+        onRenameTask={handleRenameTask}
+        onDeleteTask={handleDeleteTask}
         onLoad={handleLoad}
         onEdit={() => setShowInput((v) => !v)}
-        onRefresh={() => refreshFromNotion(apiKey, databaseId, true)}
+        onRefresh={() => void handleRefresh(apiKey, databaseId, true)}
         onQuickAdd={handleQuickAdd}
-        loggingIds={loggingIds}
       />
 
       <Roller />
@@ -256,8 +336,7 @@ export default function App() {
           onResume={session.resume}
           onReset={session.reset}
           onStop={session.stop}
-          logging={logging}
-          onLog={handleLog}
+          onOpenNotion={openNotionDb}
           onSettings={() => setSettingsOpen(true)}
           onMinimize={handleMinimize}
           onClose={handleClose}
