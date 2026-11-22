@@ -7,8 +7,11 @@ The widget looks like a retro typewriter sitting on your desktop: a sheet of pap
 ## Features
 
 - **Floating widget**: frameless, transparent, always on top; drag it by the chassis (non-interactive area).
-- **The paper**: paste a Markdown task list (`- [ ] task`), it parses into an interactive checklist; click the strike-through checkbox to check off.
-- **Notion sync**: `…` in the chassis header opens settings for `NOTION_API_KEY` / `NOTION_DATABASE_ID` (stored locally). On launch, incomplete tasks are fetched from Notion and shown on the paper; the red **LOG** key batch-syncs checked tasks to Notion (`Status → Done`, `Time (Min)` from each task's accumulated minutes, `Logged At` = now). Failures keep the tasks on the paper and show a toast.
+- **The paper**: paste a Markdown task list (`- [ ] task`), it parses into an interactive checklist. Double-click a task title to rename it inline (Enter/blur commits, Esc cancels); click the ✕ at the row end to delete it.
+- **Persistent tasks**: the checklist and raw Markdown buffer survive restarts (localStorage keys `timekeeper.tasks.v1` and `timekeeper.markdown.v1`). Checking a task strikes it through, animates it away, and removes it from the paper.
+- **Local-first Notion autosync**: `•••` opens settings for `NOTION_API_KEY` / `NOTION_DATABASE_ID` (stored locally). Changes are written locally first and queued in `timekeeper.pendingOps.v1`; the queue flushes in a single batch every 30 s, on launch, and when you press ↻. Offline changes wait in the queue and flush when you're back online. On launch and ↻, pending ops are flushed *before* incomplete tasks are fetched, and pages backing a queued check/delete are filtered out so they can't reappear.
+- **Notion behavior**: checking a task sets `Status → Done`, `Time (Min)` from its accumulated minutes, and `Logged At = now`; renaming patches the page title; deleting archives the page (Notion trash — the only delete the API offers). New tasks omit `Status` so your database default ("Not Started") applies. Failures keep the ops queued for retry and show a toast.
+- **NOTION ↗ key**: the red key in the chassis opens your Notion database in the browser (requires a database id in settings).
 - **Timekeeper**: toggle **Timer** (countdown, default 25:00) / **Stopwatch** (count up); Start / Pause / Resume / Reset / Stop. When a session ends, you are prompted to assign the tracked minutes to the active task; sessions under 15 seconds are discarded automatically.
 - **Pill badges**: accumulated minutes appear as a badge (e.g. `25m`) next to each task.
 
