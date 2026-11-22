@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, cleanup, act } from "@testing-library/react";
 import App from "./App";
 
 const invoke = vi.fn();
@@ -7,13 +7,22 @@ const openUrl = vi.fn().mockResolvedValue(undefined);
 const startDragging = vi.fn().mockResolvedValue(undefined);
 const minimize = vi.fn().mockResolvedValue(undefined);
 const close = vi.fn().mockResolvedValue(undefined);
+const destroy = vi.fn().mockResolvedValue(undefined);
+
+type CloseRequestHandler = (event: { preventDefault: () => void }) => Promise<void> | void;
+const closeRequestHandlers: CloseRequestHandler[] = [];
+
+const onCloseRequested = vi.fn((handler: CloseRequestHandler) => {
+  closeRequestHandlers.push(handler);
+  return Promise.resolve(() => {});
+});
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: (cmd: string, args?: unknown) => invoke(cmd, args),
 }));
 
 vi.mock("@tauri-apps/api/window", () => ({
-  getCurrentWindow: () => ({ startDragging, minimize, close }),
+  getCurrentWindow: () => ({ startDragging, minimize, close, onCloseRequested, destroy }),
 }));
 
 vi.mock("@tauri-apps/plugin-opener", () => ({
@@ -35,6 +44,9 @@ describe("App (integration)", () => {
     startDragging.mockClear();
     minimize.mockClear();
     close.mockClear();
+    destroy.mockClear();
+    onCloseRequested.mockClear();
+    closeRequestHandlers.length = 0;
     Object.defineProperty(window.navigator, "onLine", { value: true, configurable: true });
     invoke.mockImplementation((cmd: string) => {
       if (cmd === "notion_query_incomplete") return Promise.resolve({ results: [] });
@@ -230,5 +242,239 @@ describe("App (integration)", () => {
     render(<App />);
     fireEvent.click(screen.getByTestId("key-minimize"));
     expect(minimize).toHaveBeenCalledTimes(1);
+  });
+
+  it("quick-add enqueues a createProgress op via the debounced flush", async () => {
+    setCreds();
+    render(<App />);
+
+    const input = screen.getByTestId("paper-quickadd");
+    fireEvent.change(input, { target: { value: "Fresh task" } });
+    fireEvent.submit(input.closest("form")!);
+
+    await waitFor(
+      () => {
+        expect(invoke).toHaveBeenCalledWith(
+          "notion_flush_ops",
+          expect.objectContaining({
+            ops: [
+              expect.objectContaining({
+                kind: "createProgress",
+                status: "Not Started",
+                accumulatedMinutes: 0,
+              }),
+            ],
+          })
+        );
+      },
+      { timeout: 4000 }
+    );
+  });
+
+  it("checking a task enqueues a done op and sweeps undone tasks into progress ops", async () => {
+    setCreds();
+    localStorage.setItem(
+      "timekeeper.tasks.v1",
+      JSON.stringify([
+        {
+          localId: "task-1",
+          notionPageId: "page-1",
+          title: "Buy milk",
+          isChecked: false,
+          accumulatedMinutes: 0,
+        },
+        {
+          localId: "task-2",
+          notionPageId: "page-2",
+          title: "Write docs",
+          isChecked: false,
+          accumulatedMinutes: 25,
+        },
+      ])
+    );
+
+    render(<App />);
+
+    const row = screen.getByText("Buy milk").closest("li");
+    expect(row).toBeTruthy();
+    fireEvent.click(row!.querySelector("button")!);
+
+    await waitFor(
+      () => {
+        expect(invoke).toHaveBeenCalledWith(
+          "notion_flush_ops",
+          expect.objectContaining({
+            ops: expect.arrayContaining([
+              expect.objectContaining({ kind: "done", localId: "task-1", notionPageId: "page-1" }),
+              expect.objectContaining({
+                kind: "progress",
+                localId: "task-2",
+                notionPageId: "page-2",
+                status: "In Progress",
+                accumulatedMinutes: 25,
+              }),
+            ]),
+          })
+        );
+      },
+      { timeout: 4000 }
+    );
+  });
+
+  it("assigning a session sweeps the task into a progress op", async () => {
+    vi.useFakeTimers();
+    try {
+      setCreds();
+      localStorage.setItem(
+        "timekeeper.tasks.v1",
+        JSON.stringify([
+          {
+            localId: "task-1",
+            notionPageId: "page-1",
+            title: "Buy milk",
+            isChecked: false,
+            accumulatedMinutes: 0,
+          },
+        ])
+      );
+
+      render(<App />);
+
+      fireEvent.click(screen.getByTestId("mode-stopwatch"));
+      fireEvent.click(screen.getByTestId("tk-start"));
+      act(() => {
+        vi.advanceTimersByTime(60_000);
+      });
+      fireEvent.click(screen.getByTestId("tk-stop-reset"));
+
+      expect(screen.getByTestId("session-end-prompt")).toBeTruthy();
+      fireEvent.click(screen.getByTestId("session-save"));
+
+      // Let the ~1 s flush debounce elapse, then the debounced flush runs.
+      act(() => {
+        vi.advanceTimersByTime(1_100);
+      });
+
+      expect(invoke).toHaveBeenCalledWith(
+        "notion_flush_ops",
+        expect.objectContaining({
+          ops: [
+            expect.objectContaining({
+              kind: "progress",
+              localId: "task-1",
+              status: "In Progress",
+              accumulatedMinutes: 1,
+            }),
+          ],
+        })
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("flushes queued ops when the browser regains connectivity", async () => {
+    setCreds();
+    localStorage.setItem(
+      "timekeeper.tasks.v1",
+      JSON.stringify([
+        {
+          localId: "task-1",
+          notionPageId: "page-1",
+          title: "Buy milk",
+          isChecked: false,
+          accumulatedMinutes: 0,
+        },
+      ])
+    );
+
+    render(<App />);
+
+    // Check the task so a done op lands in the queue.
+    const row = screen.getByText("Buy milk").closest("li");
+    expect(row).toBeTruthy();
+    fireEvent.click(row!.querySelector("button")!);
+
+    act(() => {
+      window.dispatchEvent(new Event("online"));
+    });
+
+    await waitFor(
+      () => {
+        expect(invoke).toHaveBeenCalledWith(
+          "notion_flush_ops",
+          expect.objectContaining({
+            ops: [expect.objectContaining({ kind: "done" })],
+          })
+        );
+      },
+      { timeout: 4000 }
+    );
+  });
+
+  it("flushes queued ops and destroys the window on close request", async () => {
+    setCreds();
+    localStorage.setItem(
+      "timekeeper.pendingOps.v1",
+      JSON.stringify([
+        { id: "p1", kind: "done", localId: "L", notionPageId: "P", title: "A", accumulatedMinutes: 5, attempts: 0 },
+      ])
+    );
+
+    render(<App />);
+
+    await waitFor(() => expect(closeRequestHandlers.length).toBeGreaterThan(0));
+    invoke.mockClear();
+
+    const handler = closeRequestHandlers[closeRequestHandlers.length - 1];
+    const preventDefault = vi.fn();
+    await act(async () => {
+      await handler({ preventDefault });
+    });
+
+    expect(preventDefault).toHaveBeenCalled();
+    expect(invoke).toHaveBeenCalledWith(
+      "notion_flush_ops",
+      expect.objectContaining({
+        ops: [expect.objectContaining({ kind: "done" })],
+      })
+    );
+    await waitFor(() => expect(destroy).toHaveBeenCalled());
+  });
+
+  it("closes the window even when the final flush fails", async () => {
+    setCreds();
+    localStorage.setItem(
+      "timekeeper.pendingOps.v1",
+      JSON.stringify([
+        { id: "p1", kind: "done", localId: "L", notionPageId: "P", title: "A", accumulatedMinutes: 5, attempts: 0 },
+      ])
+    );
+    invoke.mockImplementation((cmd: string) => {
+      if (cmd === "notion_flush_ops") return Promise.reject(new Error("notion down"));
+      if (cmd === "notion_query_incomplete") return Promise.resolve({ results: [] });
+      return Promise.reject(new Error(`unexpected invoke: ${cmd}`));
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(closeRequestHandlers.length).toBeGreaterThan(0));
+    invoke.mockClear();
+
+    const handler = closeRequestHandlers[closeRequestHandlers.length - 1];
+    const preventDefault = vi.fn();
+    await act(async () => {
+      await handler({ preventDefault });
+    });
+
+    expect(preventDefault).toHaveBeenCalled();
+    await waitFor(() => expect(destroy).toHaveBeenCalled());
+  });
+
+  it("does not create a periodic flush interval", () => {
+    const setIntervalSpy = vi.spyOn(window, "setInterval");
+    render(<App />);
+    expect(setIntervalSpy).not.toHaveBeenCalled();
+    setIntervalSpy.mockRestore();
   });
 });

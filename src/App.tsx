@@ -11,7 +11,7 @@ import { usePendingOps } from "./hooks/usePendingOps";
 import { useTimekeeperSession } from "./hooks/useTimekeeperSession";
 import { attachChassisDrag } from "./lib/windowDrag";
 import { fetchIncompleteTasks } from "./lib/notion";
-import { filterFetched } from "./lib/sync";
+import { filterFetched, statusFor } from "./lib/sync";
 import { tasksToMarkdown, type Task } from "./lib/tasks";
 import type { TimekeeperMode } from "./lib/timekeeper";
 
@@ -19,6 +19,7 @@ const API_KEY_STORAGE = "timekeeper.notion.apiKey";
 const DB_ID_STORAGE = "timekeeper.notion.databaseId";
 const MARKDOWN_STORAGE = "timekeeper.markdown.v1";
 const TOAST_MS = 4000;
+const FLUSH_DEBOUNCE_MS = 1000;
 
 export default function App() {
   const [markdown, setMarkdown] = useState(
@@ -60,7 +61,7 @@ export default function App() {
     renameTask,
     applyPageIds,
   } = useTaskList();
-  const { ops, enqueue, flush } = usePendingOps({ apiKey, databaseId });
+  const { ops, enqueue, enqueueProgress, flush } = usePendingOps({ apiKey, databaseId });
   const opsRef = useRef(ops);
   opsRef.current = ops;
   const flushNow = useCallback(async () => {
@@ -68,6 +69,28 @@ export default function App() {
     if (result.backfills.length > 0) applyPageIds(result.backfills);
     return result;
   }, [flush, applyPageIds]);
+  const flushNowRef = useRef(flushNow);
+  flushNowRef.current = flushNow;
+  const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearFlushTimer = useCallback(() => {
+    if (flushTimerRef.current) {
+      clearTimeout(flushTimerRef.current);
+      flushTimerRef.current = null;
+    }
+  }, []);
+
+  // Design: ~1 s after an update burst, coalesce into a single debounced flush.
+  const scheduleFlush = useCallback(() => {
+    clearFlushTimer();
+    flushTimerRef.current = setTimeout(() => {
+      flushTimerRef.current = null;
+      void flushNowRef.current();
+    }, FLUSH_DEBOUNCE_MS);
+  }, [clearFlushTimer]);
+
+  // Cancel any pending debounced flush when the widget unmounts.
+  useEffect(() => clearFlushTimer, [clearFlushTimer]);
   const session = useTimekeeperSession({ mode, initialSeconds: timerPreset * 60 });
 
   const chassisRef = useRef<HTMLDivElement>(null);
@@ -130,13 +153,36 @@ export default function App() {
     [apiKey, databaseId, mergeFetched, showToast]
   );
 
-  // Flush queued ops in the background every 30 s.
+  // Design: event-driven autolog — no periodic flush. Flush on reconnect,
+  // app close, manual refresh, launch, or a debounced update burst.
   useEffect(() => {
-    const id = window.setInterval(() => {
-      void flushNow();
-    }, 30000);
-    return () => window.clearInterval(id);
-  }, [flushNow]);
+    const handleOnline = () => {
+      void flushNowRef.current();
+    };
+    window.addEventListener("online", handleOnline);
+    return () => window.removeEventListener("online", handleOnline);
+  }, []);
+
+  // Design: app close -> preventDefault -> final flushNow() -> destroy().
+  // If the final flush fails, the ops stay queued and the close proceeds.
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    getCurrentWindow()
+      .onCloseRequested(async (event) => {
+        event.preventDefault();
+        await flushNowRef.current();
+        await getCurrentWindow().destroy();
+      })
+      .then((fn) => {
+        unlisten = fn;
+      })
+      .catch(() => {
+        // Listener unavailable — fall through to a normal close.
+      });
+    return () => {
+      unlisten?.();
+    };
+  }, []);
 
   // On launch: flush anything queued while offline, then pull fresh tasks.
   const didLoad = useRef(false);
@@ -168,6 +214,26 @@ export default function App() {
     setActiveTaskId((prev) => (prev === taskId ? null : taskId));
   }, []);
 
+  // Design: sweep undone tasks into progress ops (Status via statusFor(minutes)).
+  // Used on check / time assign / rename / delete so Notion mirrors local state.
+  const sweepUndoneTasks = useCallback(
+    (taskList: Task[]) => {
+      for (const task of taskList) {
+        if (task.isChecked) continue;
+        const minutes = task.accumulatedMinutes;
+        enqueueProgress({
+          kind: "progress",
+          localId: task.localId,
+          notionPageId: task.notionPageId,
+          title: task.title,
+          status: statusFor(minutes),
+          accumulatedMinutes: minutes,
+        });
+      }
+    },
+    [enqueueProgress]
+  );
+
   const handleToggleTask = useCallback(
     (taskId: string) => {
       const task = tasks.find((t) => t.localId === taskId);
@@ -189,8 +255,11 @@ export default function App() {
       window.setTimeout(() => {
         setVanishingTasks((v) => v.filter((t) => t.localId !== taskId));
       }, 450);
+      // Design: check -> done for the task, sweep the remaining undone tasks.
+      sweepUndoneTasks(tasks.filter((t) => t.localId !== taskId && !t.isChecked));
+      scheduleFlush();
     },
-    [tasks, enqueue, toggleTask, removeTask]
+    [tasks, enqueue, toggleTask, removeTask, sweepUndoneTasks, scheduleFlush]
   );
 
   const handleRenameTask = useCallback(
@@ -205,8 +274,10 @@ export default function App() {
         notionPageId: task.notionPageId,
         title: trimmed,
       });
+      sweepUndoneTasks(tasks.filter((t) => !t.isChecked));
+      scheduleFlush();
     },
-    [tasks, renameTask, enqueue]
+    [tasks, renameTask, enqueue, sweepUndoneTasks, scheduleFlush]
   );
 
   const handleDeleteTask = useCallback(
@@ -219,8 +290,10 @@ export default function App() {
         notionPageId: task.notionPageId,
       });
       removeTask(taskId);
+      sweepUndoneTasks(tasks.filter((t) => t.localId !== taskId && !t.isChecked));
+      scheduleFlush();
     },
-    [tasks, enqueue, removeTask]
+    [tasks, enqueue, removeTask, sweepUndoneTasks, scheduleFlush]
   );
 
   const handleQuickAdd = useCallback(
@@ -228,7 +301,16 @@ export default function App() {
       const id = crypto.randomUUID();
       addSingleTask(title, id);
       if (!title.trim()) return;
-      enqueue({ kind: "create", localId: id, title: title.trim() });
+      // Design: task created -> enqueue createProgress (Status "Not Started", Time 0).
+      enqueueProgress({
+        kind: "progress",
+        localId: id,
+        notionPageId: null,
+        title: title.trim(),
+        status: statusFor(0),
+        accumulatedMinutes: 0,
+      });
+      scheduleFlush();
       // Keep the raw markdown in sync so a later DONE (RENDER) can't drop it.
       setMarkdown((prev) => {
         const trimmed = title.trim();
@@ -236,7 +318,7 @@ export default function App() {
         return prev.trim() ? `${prev.replace(/\s+$/, "")}\n${line}` : line;
       });
     },
-    [addSingleTask, enqueue]
+    [addSingleTask, enqueueProgress, scheduleFlush]
   );
 
   const handleRefresh = useCallback(
@@ -298,8 +380,16 @@ export default function App() {
       activeTaskId={activeTaskId}
       activeTaskTitle={activeTask?.title ?? null}
       onAssign={(taskId) => {
+        const task = tasks.find((t) => t.localId === taskId);
         assignAccumulatedMinutes(taskId, session.promptMinutes);
         session.discardPrompt();
+        // Design: time updated -> sweep undone tasks into progress ops.
+        if (task) {
+          sweepUndoneTasks([
+            { ...task, accumulatedMinutes: task.accumulatedMinutes + session.promptMinutes },
+          ]);
+        }
+        scheduleFlush();
       }}
       onDiscard={session.discardPrompt}
     />
