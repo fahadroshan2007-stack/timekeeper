@@ -442,6 +442,46 @@ describe("App (integration)", () => {
     await waitFor(() => expect(destroy).toHaveBeenCalled());
   });
 
+  it("cancels the pending debounced flush when the final close flush runs", async () => {
+    setCreds();
+    localStorage.setItem(
+      "timekeeper.pendingOps.v1",
+      JSON.stringify([
+        { id: "p1", kind: "done", localId: "L", notionPageId: "P", title: "A", accumulatedMinutes: 5, attempts: 0 },
+      ])
+    );
+
+    render(<App />);
+
+    await waitFor(() => expect(closeRequestHandlers.length).toBeGreaterThan(0));
+
+    // Mutate so the ~1 s debounced flush gets armed before the widget closes.
+    const input = screen.getByTestId("paper-quickadd");
+    fireEvent.change(input, { target: { value: "Fresh task" } });
+    fireEvent.submit(input.closest("form")!);
+
+    invoke.mockClear();
+
+    const handler = closeRequestHandlers[closeRequestHandlers.length - 1];
+    const preventDefault = vi.fn();
+    await act(async () => {
+      await handler({ preventDefault });
+    });
+
+    expect(preventDefault).toHaveBeenCalled();
+    await waitFor(() => expect(destroy).toHaveBeenCalled());
+
+    const flushCallCount = () =>
+      invoke.mock.calls.filter(([cmd]) => cmd === "notion_flush_ops").length;
+
+    const before = flushCallCount();
+    expect(before).toBeGreaterThan(0);
+
+    // Wait past the ~1 s debounce window: the cancelled timer must not fire a second flush.
+    await new Promise((r) => setTimeout(r, 1300));
+    expect(flushCallCount()).toBe(before);
+  });
+
   it("closes the window even when the final flush fails", async () => {
     setCreds();
     localStorage.setItem(

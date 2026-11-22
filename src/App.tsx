@@ -170,6 +170,9 @@ export default function App() {
     getCurrentWindow()
       .onCloseRequested(async (event) => {
         event.preventDefault();
+        // Design: clear any pending debounced flush before the final flush so the
+        // timer can't fire (and flush again) after the widget has been destroyed.
+        clearFlushTimer();
         await flushNowRef.current();
         await getCurrentWindow().destroy();
       })
@@ -182,7 +185,7 @@ export default function App() {
     return () => {
       unlisten?.();
     };
-  }, []);
+  }, [clearFlushTimer]);
 
   // On launch: flush anything queued while offline, then pull fresh tasks.
   const didLoad = useRef(false);
