@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { Task } from "./tasks";
 import type { PendingOp, OpResult } from "./sync";
-import { coalesceOps, applyFlushResults, filterFetched } from "./sync";
+import { coalesceOps, applyFlushResults, filterFetched, extractPageIds } from "./sync";
 
 const fetched = (overrides: Partial<Task> = {}): Task => ({
   localId: "page-1",
@@ -180,6 +180,29 @@ describe("applyFlushResults", () => {
     const remaining = applyFlushResults(ops, results);
 
     expect((remaining.find((op) => op.id === "o2") as any).notionPageId).toBeNull();
+  });
+});
+
+describe("extractPageIds", () => {
+  it("maps successful page ids back to the local tasks that created them", () => {
+    const ops = [createOp("o1", "L1", "A"), createOp("o2", "L2", "B")];
+    const results: OpResult[] = [
+      { opIds: ["o1"], ok: true, pageId: "P1" },
+      { opIds: ["o2"], ok: false },
+    ];
+
+    expect(extractPageIds(ops, results)).toEqual([{ localId: "L1", pageId: "P1" }]);
+  });
+
+  it("ignores results without a page id and deduplicates by local id", () => {
+    const ops = [createOp("o1", "L", "A"), renameOp("o2", "L", null, "B")];
+    const results: OpResult[] = [
+      { opIds: ["o1"], ok: true },
+      { opIds: ["o2"], ok: true, pageId: "P1" },
+      { opIds: ["o1", "o2"], ok: true, pageId: "P2" },
+    ];
+
+    expect(extractPageIds(ops, results)).toEqual([{ localId: "L", pageId: "P2" }]);
   });
 });
 

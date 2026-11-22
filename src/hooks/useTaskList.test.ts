@@ -184,6 +184,29 @@ describe("useTaskList", () => {
     expect(result.current.tasks.map((t) => t.title)).toEqual(["Local task", "Fetched task"]);
   });
 
+  it("applyPageIds links local tasks to pages created in Notion", () => {
+    localStorage.setItem(
+      TASKS_KEY,
+      JSON.stringify([
+        { localId: "a", notionPageId: null, title: "A", isChecked: false, accumulatedMinutes: 0 },
+        { localId: "b", notionPageId: "old-page", title: "B", isChecked: false, accumulatedMinutes: 0 },
+      ])
+    );
+    const { result } = renderHook(() => useTaskList());
+
+    act(() =>
+      result.current.applyPageIds([
+        { localId: "a", pageId: "P1" },
+        { localId: "b", pageId: "P2" },
+        { localId: "unknown", pageId: "P3" },
+      ])
+    );
+
+    expect(result.current.tasks[0].notionPageId).toBe("P1");
+    expect(result.current.tasks[1].notionPageId).toBe("old-page");
+    expect(result.current.tasks).toHaveLength(2);
+  });
+
   it("addTaskList re-parse preserves localId for title-matched rows", () => {
     const { result } = renderHook(() => useTaskList());
     act(() => result.current.addTaskList("- [ ] Buy milk"));

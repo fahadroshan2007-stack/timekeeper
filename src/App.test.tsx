@@ -160,6 +160,48 @@ describe("App (integration)", () => {
     expect(openUrl).toHaveBeenCalledWith("https://www.notion.so/abcd1234");
   });
 
+  it("links a quick-added task to its Notion page so a later pull doesn't duplicate it", async () => {
+    setCreds();
+    let created = false;
+    invoke.mockImplementation(
+      (cmd: string, args?: { ops?: { opIds?: string[] }[] }) => {
+        if (cmd === "notion_query_incomplete") {
+          if (!created) return Promise.resolve({ results: [] });
+          return Promise.resolve({
+            results: [
+              {
+                id: "new-page",
+                properties: {
+                  Task: { title: [{ plain_text: "Fresh task" }] },
+                  Status: { status: { name: "Not Started" } },
+                },
+              },
+            ],
+          });
+        }
+        if (cmd === "notion_flush_ops") {
+          created = true;
+          return Promise.resolve([
+            { opIds: args?.ops?.[0]?.opIds ?? [], ok: true, pageId: "new-page" },
+          ]);
+        }
+        return Promise.reject(new Error(`unexpected invoke: ${cmd}`));
+      }
+    );
+
+    render(<App />);
+    const input = screen.getByTestId("paper-quickadd");
+    fireEvent.change(input, { target: { value: "Fresh task" } });
+    fireEvent.submit(input.closest("form")!);
+    fireEvent.click(screen.getByTestId("key-refresh"));
+
+    // The toast is shown after the fetched page has been merged into the list.
+    await waitFor(() => {
+      expect(screen.getByTestId("toast").textContent).toContain("Synced 1 task(s)");
+    });
+    expect(screen.getAllByText("Fresh task")).toHaveLength(1);
+  });
+
   it("toggles the Noir & Brass (late-night) theme on the widget root", () => {
     render(<App />);
 

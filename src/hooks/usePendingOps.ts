@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import type { PendingOp, OpResult } from "../lib/sync";
-import { coalesceOps, applyFlushResults } from "../lib/sync";
+import type { PendingOp, OpResult, PageIdBackfill } from "../lib/sync";
+import { coalesceOps, applyFlushResults, extractPageIds } from "../lib/sync";
 
 export type EnqueueOp =
   | { kind: "create"; localId: string; title: string }
@@ -13,11 +13,15 @@ export interface FlushResult {
   ok: boolean;
   failed: number;
   skipped: boolean;
+  /** Page ids returned for just-created tasks, for linking local tasks to Notion. */
+  backfills: PageIdBackfill[];
 }
 
 const PENDING_OPS_KEY = "timekeeper.pendingOps.v1";
 
 export function usePendingOps(args: { apiKey: string; databaseId: string }) {
+  const { apiKey, databaseId } = args;
+  const flushingRef = useRef(false);
   const [ops, setOps] = useState<PendingOp[]>(() => {
     try {
       const raw = localStorage.getItem(PENDING_OPS_KEY);
@@ -95,21 +99,18 @@ export function usePendingOps(args: { apiKey: string; databaseId: string }) {
   }, []);
 
   const flush = useCallback(async (): Promise<FlushResult> => {
-    const { apiKey, databaseId } = args;
+    const skip = (): FlushResult => ({ ok: true, failed: 0, skipped: true, backfills: [] });
 
-    if (!apiKey || !databaseId) {
-      return { ok: true, failed: 0, skipped: true };
-    }
+    // Overlapping flushes would coalesce the same ops twice (duplicate pages).
+    if (flushingRef.current) return skip();
 
-    if (typeof navigator !== "undefined" && navigator.onLine === false) {
-      return { ok: true, failed: 0, skipped: true };
-    }
+    if (!apiKey || !databaseId) return skip();
+    if (typeof navigator !== "undefined" && navigator.onLine === false) return skip();
 
     const coalesced = coalesceOps(ops);
-    if (coalesced.length === 0) {
-      return { ok: true, failed: 0, skipped: true };
-    }
+    if (coalesced.length === 0) return skip();
 
+    flushingRef.current = true;
     try {
       const results = await invoke<OpResult[]>("notion_flush_ops", {
         apiKey,
@@ -121,13 +122,20 @@ export function usePendingOps(args: { apiKey: string; databaseId: string }) {
       setOps(remaining);
 
       const failed = results.filter((r) => !r.ok).length;
-      return { ok: failed === 0, failed, skipped: false };
+      return {
+        ok: failed === 0,
+        failed,
+        skipped: false,
+        backfills: extractPageIds(ops, results),
+      };
     } catch {
       // invoke failed — keep all ops, increment attempts
       setOps((prev) => prev.map((op) => ({ ...op, attempts: op.attempts + 1 })));
-      return { ok: false, failed: coalesced.length, skipped: false };
+      return { ok: false, failed: coalesced.length, skipped: false, backfills: [] };
+    } finally {
+      flushingRef.current = false;
     }
-  }, [ops, args]);
+  }, [ops, apiKey, databaseId]);
 
   return { ops, enqueue, flush };
 }

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { usePendingOps } from "./usePendingOps";
-import type { PendingOp } from "../lib/sync";
+import type { PendingOp, OpResult } from "../lib/sync";
 
 const invoke = vi.fn();
 
@@ -130,6 +130,43 @@ describe("usePendingOps", () => {
     expect(result.current.ops).toHaveLength(1);
     expect(result.current.ops[0].id).toBe(doneId);
     expect((result.current.ops[0] as any).notionPageId).toBe("P1");
+  });
+
+  it("keeps a stable flush callback across rerenders with the same credentials", () => {
+    const { result, rerender } = renderHook(
+      ({ apiKey, databaseId }) => usePendingOps({ apiKey, databaseId }),
+      { initialProps: { apiKey: "test-key", databaseId: "test-db" } }
+    );
+    const firstFlush = result.current.flush;
+
+    rerender({ apiKey: "test-key", databaseId: "test-db" });
+
+    expect(result.current.flush).toBe(firstFlush);
+  });
+
+  it("does not invoke twice when flush is called while a flush is in flight", async () => {
+    const { result } = renderHook(() => usePendingOps(creds));
+    act(() => result.current.enqueue({ kind: "create", localId: "L", title: "A" }));
+    const opIds = result.current.ops.map((op) => op.id);
+
+    let resolveInvoke: ((value: OpResult[]) => void) | undefined;
+    invoke.mockImplementation(
+      () =>
+        new Promise<OpResult[]>((resolve) => {
+          resolveInvoke = resolve;
+        })
+    );
+
+    const first = result.current.flush();
+    const second = result.current.flush();
+    expect(second).toBeInstanceOf(Promise);
+
+    await act(async () => {
+      resolveInvoke!([{ opIds, ok: true, pageId: "P1" }]);
+      await Promise.all([first, second]);
+    });
+
+    expect(invoke).toHaveBeenCalledTimes(1);
   });
 
   it("flush invoke failure keeps every op and reports ok: false", async () => {

@@ -20,6 +20,27 @@ export interface OpResult {
   pageId?: string;
 }
 
+export interface PageIdBackfill {
+  localId: string;
+  pageId: string;
+}
+
+/** Page ids of successfully created pages, keyed back to their local tasks. */
+export function extractPageIds(ops: PendingOp[], results: OpResult[]): PageIdBackfill[] {
+  const opById = new Map(ops.map((op) => [op.id, op]));
+  const byLocalId = new Map<string, string>();
+
+  for (const result of results) {
+    if (!result.ok || !result.pageId) continue;
+    for (const opId of result.opIds) {
+      const op = opById.get(opId);
+      if (op) byLocalId.set(op.localId, result.pageId);
+    }
+  }
+
+  return [...byLocalId].map(([localId, pageId]) => ({ localId, pageId }));
+}
+
 function lastOf<T>(ops: T[], accessor: (op: T) => string): string | undefined {
   for (let i = ops.length - 1; i >= 0; i--) {
     const value = accessor(ops[i]);

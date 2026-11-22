@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import type { PageIdBackfill } from "../lib/sync";
 import {
   parseTaskList,
   toggleTask as toggleTaskState,
@@ -20,6 +21,8 @@ export interface UseTaskListResult {
   addSingleTask: (title: string, localId?: string) => void;
   /** Rename a task in place; blank titles are ignored and return the task unchanged. */
   renameTask: (taskId: string, title: string) => void;
+  /** Link local tasks to Notion pages created for them (only fills missing ids). */
+  applyPageIds: (backfills: PageIdBackfill[]) => void;
 }
 
 export const TASKS_KEY = "timekeeper.tasks.v1";
@@ -114,6 +117,18 @@ export function useTaskList(): UseTaskListResult {
     );
   }, []);
 
+  const applyPageIds = useCallback((backfills: PageIdBackfill[]) => {
+    if (backfills.length === 0) return;
+    const pageIdByLocalId = new Map(backfills.map((b) => [b.localId, b.pageId]));
+    setTasks((prev) =>
+      prev.map((task) => {
+        if (task.notionPageId) return task;
+        const pageId = pageIdByLocalId.get(task.localId);
+        return pageId ? { ...task, notionPageId: pageId } : task;
+      })
+    );
+  }, []);
+
   return {
     tasks,
     addTaskList,
@@ -123,5 +138,6 @@ export function useTaskList(): UseTaskListResult {
     mergeFetched,
     addSingleTask,
     renameTask: renameTaskFn,
+    applyPageIds,
   };
 }

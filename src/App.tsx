@@ -58,11 +58,16 @@ export default function App() {
     mergeFetched,
     addSingleTask,
     renameTask,
+    applyPageIds,
   } = useTaskList();
   const { ops, enqueue, flush } = usePendingOps({ apiKey, databaseId });
   const opsRef = useRef(ops);
   opsRef.current = ops;
-  const flushNow = useCallback(async () => flush(), [flush]);
+  const flushNow = useCallback(async () => {
+    const result = await flush();
+    if (result.backfills.length > 0) applyPageIds(result.backfills);
+    return result;
+  }, [flush, applyPageIds]);
   const session = useTimekeeperSession({ mode, initialSeconds: timerPreset * 60 });
 
   const chassisRef = useRef<HTMLDivElement>(null);
