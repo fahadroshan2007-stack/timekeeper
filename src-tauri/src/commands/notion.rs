@@ -1,68 +1,27 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use std::collections::HashSet;
 use std::time::Duration;
 
-#[derive(Debug, Deserialize)]
-#[serde(tag = "kind", rename_all = "camelCase")]
-pub enum WireOp {
-    Create {
-        #[serde(rename = "opIds")]
-        op_ids: Vec<String>,
-        title: String,
-    },
-    CreateDone {
-        #[serde(rename = "opIds")]
-        op_ids: Vec<String>,
-        title: String,
-        #[serde(rename = "accumulatedMinutes")]
-        accumulated_minutes: i64,
-    },
-    CreateProgress {
-        #[serde(rename = "opIds")]
-        op_ids: Vec<String>,
-        title: String,
-        status: String,
-        #[serde(rename = "accumulatedMinutes")]
-        accumulated_minutes: i64,
-    },
-    Done {
-        #[serde(rename = "opIds")]
-        op_ids: Vec<String>,
-        #[serde(rename = "notionPageId")]
-        notion_page_id: String,
-        #[serde(rename = "accumulatedMinutes")]
-        accumulated_minutes: i64,
-    },
-    Progress {
-        #[serde(rename = "opIds")]
-        op_ids: Vec<String>,
-        #[serde(rename = "notionPageId")]
-        notion_page_id: String,
-        status: String,
-        #[serde(rename = "accumulatedMinutes")]
-        accumulated_minutes: i64,
-    },
-    Rename {
-        #[serde(rename = "opIds")]
-        op_ids: Vec<String>,
-        #[serde(rename = "notionPageId")]
-        notion_page_id: String,
-        title: String,
-    },
-    Trash {
-        #[serde(rename = "opIds")]
-        op_ids: Vec<String>,
-        #[serde(rename = "notionPageId")]
-        notion_page_id: String,
-    },
+const NOTION_PAGE_SIZE: usize = 100;
+const MAX_NOTION_QUERY_PAGES: usize = 100;
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NotionTaskPayload {
+    pub task_id: String,
+    pub notion_page_id: Option<String>,
+    pub title: String,
+    pub is_checked: bool,
+    pub accumulated_minutes: i64,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct OpResult {
-    pub op_ids: Vec<String>,
+pub struct NotionSyncResult {
+    pub task_id: String,
     pub ok: bool,
     pub error: Option<String>,
-    pub page_id: Option<String>,
 }
 
 fn now_iso() -> String {
@@ -92,212 +51,141 @@ async fn response_error(resp: reqwest::Response) -> String {
     }
 }
 
-fn title_prop(title: &str) -> serde_json::Value {
-    serde_json::json!({ "title": [{ "text": { "content": title } }] })
-}
-
-fn done_properties(title: &str, accumulated_minutes: i64, now: &str) -> serde_json::Value {
+fn initial_query_body() -> Value {
     serde_json::json!({
-        "Task": { "title": [{ "text": { "content": title } }] },
-        "Status": { "status": { "name": "Done" } },
-        "Time (Min)": { "number": accumulated_minutes },
-        "Logged At": { "date": { "start": now } }
+        "filter": {
+            "property": "Status",
+            "status": { "does_not_equal": "Done" }
+        },
+        "page_size": NOTION_PAGE_SIZE
     })
 }
 
-fn progress_properties(title: &str, status: &str, accumulated_minutes: i64) -> serde_json::Value {
+fn next_query_body(next_cursor: &str) -> Value {
     serde_json::json!({
-        "Task": title_prop(title),
-        "Status": { "status": { "name": status } },
-        "Time (Min)": { "number": accumulated_minutes }
+        "filter": {
+            "property": "Status",
+            "status": { "does_not_equal": "Done" }
+        },
+        "page_size": NOTION_PAGE_SIZE,
+        "start_cursor": next_cursor
     })
 }
 
-fn patch_body(properties: serde_json::Value) -> serde_json::Value {
-    serde_json::json!({ "properties": properties })
+fn should_fetch_next(has_more: bool, next_cursor: Option<&str>) -> bool {
+    has_more && next_cursor.is_some_and(|cursor| !cursor.trim().is_empty())
 }
 
-async fn send_patch(
-    client: &reqwest::Client,
-    url: &str,
-    body: serde_json::Value,
-    api_key: &str,
-) -> Result<reqwest::Response, String> {
-    client
-        .patch(url)
-        .json(&body)
-        .bearer_auth(api_key)
-        .send()
-        .await
-        .map_err(|e| format!("Notion PATCH error: {}", e))
-}
+fn merge_query_pages(pages: Vec<Value>) -> Value {
+    let mut results: Vec<Value> = Vec::new();
+    let mut seen_page_ids: HashSet<String> = HashSet::new();
+    let mut request_id = Value::Null;
 
-async fn send_post(
-    client: &reqwest::Client,
-    url: &str,
-    body: serde_json::Value,
-    api_key: &str,
-) -> Result<reqwest::Response, String> {
-    client
-        .post(url)
-        .json(&body)
-        .bearer_auth(api_key)
-        .send()
-        .await
-        .map_err(|e| format!("Notion POST error: {}", e))
+    for (index, page) in pages.into_iter().enumerate() {
+        if index == 0 {
+            request_id = page.get("request_id").cloned().unwrap_or(Value::Null);
+        }
+
+        let is_duplicate = page
+            .get("id")
+            .and_then(Value::as_str)
+            .map(|page_id| !seen_page_ids.insert(page_id.to_string()))
+            .unwrap_or(false);
+
+        if is_duplicate {
+            continue;
+        }
+
+        results.push(page);
+    }
+
+    serde_json::json!({
+        "results": Value::Array(results),
+        "has_more": false,
+        "next_cursor": Value::Null,
+        "request_id": request_id,
+    })
 }
 
 #[tauri::command]
-pub async fn notion_flush_ops(
-    ops: Vec<WireOp>,
+pub async fn notion_log_batch(
+    tasks: Vec<NotionTaskPayload>,
     api_key: String,
     database_id: String,
-) -> Result<Vec<OpResult>, String> {
+) -> Result<Vec<NotionSyncResult>, String> {
     let client = build_client();
-    let mut results: Vec<OpResult> = Vec::with_capacity(ops.len());
+    let mut results: Vec<NotionSyncResult> = Vec::with_capacity(tasks.len());
 
-    for op in ops {
-        let (op_ids, outcome): (Vec<String>, Result<Option<String>, String>) = match &op {
-            WireOp::Create {
-                op_ids,
-                title,
-                ..
-            } => {
-                let body = serde_json::json!({
+    for task in tasks {
+        let body = serde_json::json!({
+            "properties": {
+                "Task": { "title": [{ "text": { "content": task.title } }] },
+                "Status": { "status": { "name": "Done" } },
+                "Time (Min)": { "number": task.accumulated_minutes },
+                "Logged At": { "date": { "start": now_iso() } }
+            }
+        });
+
+        let result = match &task.notion_page_id {
+            Some(page_id) => {
+                let url = format!("https://api.notion.com/v1/pages/{}", page_id);
+                let response = client
+                    .patch(&url)
+                    .json(&body)
+                    .bearer_auth(&api_key)
+                    .send()
+                    .await;
+                match response {
+                    Ok(resp) if resp.status().is_success() => NotionSyncResult {
+                        task_id: task.task_id.clone(),
+                        ok: true,
+                        error: None,
+                    },
+                    Ok(resp) => NotionSyncResult {
+                        task_id: task.task_id.clone(),
+                        ok: false,
+                        error: Some(response_error(resp).await),
+                    },
+                    Err(e) => NotionSyncResult {
+                        task_id: task.task_id.clone(),
+                        ok: false,
+                        error: Some(format!("Notion PATCH error: {}", e)),
+                    },
+                }
+            }
+            None => {
+                let create_body = serde_json::json!({
                     "parent": { "database_id": database_id },
-                    "properties": { "Task": title_prop(title) }
+                    "properties": body["properties"].clone(),
                 });
-                let outcome = match send_post(&client, "https://api.notion.com/v1/pages", body, &api_key).await {
-                    Ok(resp) if resp.status().is_success() => {
-                        match resp.json::<serde_json::Value>().await {
-                            Ok(json) => Ok(json.get("id").and_then(|v| v.as_str()).map(String::from)),
-                            Err(e) => Err(format!("Notion response parse error: {}", e)),
-                        }
-                    }
-                    Ok(resp) => Err(response_error(resp).await),
-                    Err(e) => Err(e),
-                };
-                (op_ids.clone(), outcome)
-            }
-            WireOp::CreateDone {
-                op_ids,
-                title,
-                accumulated_minutes,
-                ..
-            } => {
-                let now = now_iso();
-                let body = serde_json::json!({
-                    "parent": { "database_id": database_id },
-                    "properties": done_properties(title, *accumulated_minutes, &now)
-                });
-                let outcome = match send_post(&client, "https://api.notion.com/v1/pages", body, &api_key).await {
-                    Ok(resp) if resp.status().is_success() => {
-                        match resp.json::<serde_json::Value>().await {
-                            Ok(json) => Ok(json.get("id").and_then(|v| v.as_str()).map(String::from)),
-                            Err(e) => Err(format!("Notion response parse error: {}", e)),
-                        }
-                    }
-                    Ok(resp) => Err(response_error(resp).await),
-                    Err(e) => Err(e),
-                };
-                (op_ids.clone(), outcome)
-            }
-            WireOp::CreateProgress {
-                op_ids,
-                title,
-                status,
-                accumulated_minutes,
-                ..
-            } => {
-                let body = serde_json::json!({
-                    "parent": { "database_id": database_id },
-                    "properties": progress_properties(title, status, *accumulated_minutes)
-                });
-                let outcome = match send_post(&client, "https://api.notion.com/v1/pages", body, &api_key).await {
-                    Ok(resp) if resp.status().is_success() => {
-                        match resp.json::<serde_json::Value>().await {
-                            Ok(json) => Ok(json.get("id").and_then(|v| v.as_str()).map(String::from)),
-                            Err(e) => Err(format!("Notion response parse error: {}", e)),
-                        }
-                    }
-                    Ok(resp) => Err(response_error(resp).await),
-                    Err(e) => Err(e),
-                };
-                (op_ids.clone(), outcome)
-            }
-            WireOp::Done {
-                op_ids,
-                notion_page_id,
-                accumulated_minutes,
-                ..
-            } => {
-                let now = now_iso();
-                let properties = serde_json::json!({
-                    "Status": { "status": { "name": "Done" } },
-                    "Time (Min)": { "number": accumulated_minutes },
-                    "Logged At": { "date": { "start": now } }
-                });
-                let url = format!("https://api.notion.com/v1/pages/{}", notion_page_id);
-                let outcome = match send_patch(&client, &url, patch_body(properties), &api_key).await {
-                    Ok(resp) if resp.status().is_success() => Ok(None),
-                    Ok(resp) => Err(response_error(resp).await),
-                    Err(e) => Err(e),
-                };
-                (op_ids.clone(), outcome)
-            }
-            WireOp::Progress {
-                op_ids,
-                notion_page_id,
-                status,
-                accumulated_minutes,
-                ..
-            } => {
-                let properties = serde_json::json!({
-                    "Status": { "status": { "name": status } },
-                    "Time (Min)": { "number": accumulated_minutes }
-                });
-                let url = format!("https://api.notion.com/v1/pages/{}", notion_page_id);
-                let outcome = match send_patch(&client, &url, patch_body(properties), &api_key).await {
-                    Ok(resp) if resp.status().is_success() => Ok(None),
-                    Ok(resp) => Err(response_error(resp).await),
-                    Err(e) => Err(e),
-                };
-                (op_ids.clone(), outcome)
-            }
-            WireOp::Rename {
-                op_ids,
-                notion_page_id,
-                title,
-            } => {
-                let properties = serde_json::json!({ "Task": title_prop(title) });
-                let url = format!("https://api.notion.com/v1/pages/{}", notion_page_id);
-                let outcome = match send_patch(&client, &url, patch_body(properties), &api_key).await {
-                    Ok(resp) if resp.status().is_success() => Ok(None),
-                    Ok(resp) => Err(response_error(resp).await),
-                    Err(e) => Err(e),
-                };
-                (op_ids.clone(), outcome)
-            }
-            WireOp::Trash {
-                op_ids,
-                notion_page_id,
-            } => {
-                let url = format!("https://api.notion.com/v1/pages/{}", notion_page_id);
-                let outcome = match send_patch(&client, &url, serde_json::json!({ "archived": true }), &api_key).await {
-                    Ok(resp) if resp.status().is_success() => Ok(None),
-                    Ok(resp) => Err(response_error(resp).await),
-                    Err(e) => Err(e),
-                };
-                (op_ids.clone(), outcome)
+                let url = "https://api.notion.com/v1/pages".to_string();
+                let response = client
+                    .post(&url)
+                    .json(&create_body)
+                    .bearer_auth(&api_key)
+                    .send()
+                    .await;
+                match response {
+                    Ok(resp) if resp.status().is_success() => NotionSyncResult {
+                        task_id: task.task_id.clone(),
+                        ok: true,
+                        error: None,
+                    },
+                    Ok(resp) => NotionSyncResult {
+                        task_id: task.task_id.clone(),
+                        ok: false,
+                        error: Some(response_error(resp).await),
+                    },
+                    Err(e) => NotionSyncResult {
+                        task_id: task.task_id.clone(),
+                        ok: false,
+                        error: Some(format!("Notion POST error: {}", e)),
+                    },
+                }
             }
         };
 
-        results.push(OpResult {
-            op_ids,
-            ok: outcome.is_ok(),
-            error: outcome.as_ref().err().cloned(),
-            page_id: outcome.unwrap_or(None),
-        });
+        results.push(result);
     }
 
     Ok(results)
@@ -307,31 +195,130 @@ pub async fn notion_flush_ops(
 pub async fn notion_query_incomplete(
     api_key: String,
     database_id: String,
-) -> Result<serde_json::Value, String> {
+) -> Result<Value, String> {
     let client = build_client();
     let url = format!("https://api.notion.com/v1/databases/{}/query", database_id);
-    let body = serde_json::json!({
-        "filter": {
-            "property": "Status",
-            "status": { "does_not_equal": "Done" }
-        },
-        "page_size": 100
-    });
 
-    let response = client
-        .post(&url)
-        .json(&body)
-        .bearer_auth(&api_key)
-        .send()
-        .await
-        .map_err(|e| format!("Notion query error: {}", e))?;
+    let mut pages: Vec<Value> = Vec::new();
+    let mut next_cursor: Option<String> = None;
+    let mut fetched_pages = 0usize;
 
-    if !response.status().is_success() {
-        return Err(response_error(response).await);
+    loop {
+        let body = match &next_cursor {
+            Some(cursor) => next_query_body(cursor),
+            None => initial_query_body(),
+        };
+
+        let response = client
+            .post(&url)
+            .json(&body)
+            .bearer_auth(&api_key)
+            .send()
+            .await
+            .map_err(|e| format!("Notion query error: {}", e))?;
+
+        if !response.status().is_success() {
+            return Err(response_error(response).await);
+        }
+
+        let page = response
+            .json::<Value>()
+            .await
+            .map_err(|e| format!("Notion response parse error: {}", e))?;
+
+        pages.push(page.clone());
+        fetched_pages += 1;
+
+        if fetched_pages > MAX_NOTION_QUERY_PAGES {
+            return Err(format!(
+                "Notion query exceeded maximum of {} pages without finishing",
+                MAX_NOTION_QUERY_PAGES
+            ));
+        }
+
+        let has_more = page
+            .get("has_more")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let cursor = page
+            .get("next_cursor")
+            .and_then(Value::as_str)
+            .map(|cursor| cursor.to_string());
+
+        if !should_fetch_next(has_more, cursor.as_deref()) {
+            break;
+        }
+
+        next_cursor = cursor;
     }
 
-    response
-        .json::<serde_json::Value>()
-        .await
-        .map_err(|e| format!("Notion response parse error: {}", e))
+    Ok(merge_query_pages(pages))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn initial_query_body_filters_out_done_tasks_and_pages() {
+        let body = initial_query_body();
+
+        assert_eq!(body["filter"]["property"].as_str().unwrap(), "Status");
+        assert_eq!(
+            body["filter"]["status"]["does_not_equal"].as_str().unwrap(),
+            "Done"
+        );
+        assert_eq!(body["page_size"].as_i64().unwrap(), NOTION_PAGE_SIZE as i64);
+    }
+
+    #[test]
+    fn next_query_body_reuses_filter_and_sets_start_cursor() {
+        let body = next_query_body("cursor-abc");
+
+        assert_eq!(body["start_cursor"].as_str().unwrap(), "cursor-abc");
+        assert_eq!(body["filter"]["property"].as_str().unwrap(), "Status");
+        assert_eq!(
+            body["filter"]["status"]["does_not_equal"].as_str().unwrap(),
+            "Done"
+        );
+        assert_eq!(body["page_size"].as_i64().unwrap(), NOTION_PAGE_SIZE as i64);
+    }
+
+    #[test]
+    fn should_fetch_next_requires_has_more_and_a_cursor() {
+        assert!(should_fetch_next(true, Some("cursor-abc")));
+        assert!(!should_fetch_next(false, Some("cursor-abc")));
+        assert!(!should_fetch_next(true, None));
+        assert!(!should_fetch_next(true, Some("  ")));
+    }
+
+    #[test]
+    fn merge_query_pages_combines_results_dedupes_and_closes_pagination() {
+        let first_page = serde_json::json!({
+            "results": [
+                { "id": "page-1", "properties": { "Task": { "title": [{ "plain_text": "Buy milk" }] } } }
+            ],
+            "has_more": true,
+            "next_cursor": "cursor-abc",
+            "request_id": "request-1",
+        });
+        let second_page = serde_json::json!({
+            "results": [
+                { "id": "page-2", "properties": { "Task": { "title": [{ "plain_text": "Walk dog" }] } } },
+                { "id": "page-1", "properties": { "Task": { "title": [{ "plain_text": "Buy milk" }] } } },
+            ],
+            "has_more": true,
+            "next_cursor": "cursor-def",
+            "request_id": "request-2",
+        });
+
+        let merged = merge_query_pages(vec![first_page, second_page]);
+
+        let results = merged["results"].as_array().unwrap();
+        assert_eq!(results.len(), 2);
+        assert_eq!(results[0]["id"].as_str().unwrap(), "page-1");
+        assert_eq!(results[1]["id"].as_str().unwrap(), "page-2");
+        assert_eq!(merged["has_more"].as_bool().unwrap(), false);
+        assert!(merged["next_cursor"].is_null());
+    }
 }

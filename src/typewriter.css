@@ -1514,39 +1514,3 @@ body {
   gap: 6px;
   margin-top: 10px;
 }
-
-/* Inline task editing */
-.task-edit-input {
-  flex: 1 1 auto;
-  min-width: 0;
-  height: 20px;
-  background: transparent;
-  border: none;
-  border-bottom: 1px dashed var(--ribbon-red);
-  outline: none;
-  padding: 0;
-  font-size: inherit;
-  color: var(--paper-ink, #2b2b2b);
-  user-select: text;
-}
-
-.task-delete {
-  flex: none;
-  width: 16px;
-  height: 16px;
-  margin-left: auto;
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: var(--ribbon-red);
-  opacity: 0.35;
-  font-size: 0.9rem;
-  line-height: 1;
-  cursor: pointer;
-  transition: opacity 0.15s ease;
-}
-
-.task-row:hover .task-delete,
-.task-delete:focus-visible {
-  opacity: 1;
-}

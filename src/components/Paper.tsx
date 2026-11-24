@@ -6,16 +6,14 @@ interface PaperProps {
   onMarkdownChange: (value: string) => void;
   showInput: boolean;
   tasks: Task[];
-  vanishingTasks: Task[];
   activeTaskId: string | null;
   onToggleTask: (taskId: string) => void;
   onActivateTask: (taskId: string) => void;
-  onRenameTask: (taskId: string, title: string) => void;
-  onDeleteTask: (taskId: string) => void;
   onLoad: () => void;
   onEdit: () => void;
   onRefresh: () => void;
   onQuickAdd: (title: string) => void;
+  loggingIds?: Set<string>;
 }
 
 export default function Paper({
@@ -23,37 +21,17 @@ export default function Paper({
   onMarkdownChange,
   showInput,
   tasks,
-  vanishingTasks,
   activeTaskId,
   onToggleTask,
   onActivateTask,
-  onRenameTask,
-  onDeleteTask,
   onLoad,
   onEdit,
   onRefresh,
   onQuickAdd,
+  loggingIds,
 }: PaperProps) {
   const [quickAdd, setQuickAdd] = useState("");
   const [refreshing, setRefreshing] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editDraft, setEditDraft] = useState("");
-
-  const startEdit = (task: Task) => {
-    setEditingId(task.localId);
-    setEditDraft(task.title);
-  };
-
-  const commitEdit = () => {
-    if (!editingId) return;
-    const trimmed = editDraft.trim();
-    if (trimmed) onRenameTask(editingId, trimmed);
-    setEditingId(null);
-  };
-
-  const cancelEdit = () => {
-    setEditingId(null);
-  };
 
   const submitQuickAdd = () => {
     const title = quickAdd.trim();
@@ -116,105 +94,50 @@ export default function Paper({
           />
         ) : (
           <ul data-testid="paper-content" className="task-list">
-            {tasks.length === 0 && vanishingTasks.length === 0 ? (
+            {tasks.length === 0 ? (
               <li className="empty-paper">
                 Paper is clean.
                 <br />
                 Type below or double-click to paste Markdown.
               </li>
             ) : (
-              <>
-                {tasks.map((task) => (
-                  <li
-                    key={task.localId}
-                    data-checked={String(task.isChecked)}
-                    data-active={String(activeTaskId === task.localId)}
-                    className={`task-row ${task.isChecked ? "is-checked" : ""} ${
-                      activeTaskId === task.localId ? "is-active" : ""
-                    }`}
+              tasks.map((task) => (
+                <li
+                  key={task.localId}
+                  data-checked={String(task.isChecked)}
+                  data-active={String(activeTaskId === task.localId)}
+                  className={`task-row ${task.isChecked ? "is-checked" : ""} ${
+                    activeTaskId === task.localId ? "is-active" : ""
+                  } ${loggingIds?.has(task.localId) ? "is-logging" : ""}`}
+                >
+                  <button
+                    type="button"
+                    aria-label={task.isChecked ? "Uncheck task" : "Check task"}
+                    onClick={() => onToggleTask(task.localId)}
+                    className="retro-checkbox"
                   >
-                    <button
-                      type="button"
-                      aria-label={task.isChecked ? "Uncheck task" : "Check task"}
-                      onClick={() => onToggleTask(task.localId)}
-                      className="retro-checkbox"
-                    >
-                      {task.isChecked ? "✓" : ""}
-                    </button>
-                    {editingId === task.localId ? (
-                      <input
-                        data-testid="task-edit-input"
-                        type="text"
-                        autoFocus
-                        className="task-edit-input font-typewriter"
-                        value={editDraft}
-                        onChange={(e) => setEditDraft(e.target.value)}
-                        onBlur={commitEdit}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            commitEdit();
-                          } else if (e.key === "Escape") {
-                            e.preventDefault();
-                            cancelEdit();
-                          }
-                        }}
-                      />
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => onActivateTask(task.localId)}
-                        onDoubleClick={(e) => {
-                          e.stopPropagation();
-                          startEdit(task);
-                        }}
-                        className="task-text-wrapper font-typewriter"
-                      >
-                        {activeTaskId === task.localId && (
-                          <span className="font-bold" style={{ color: "var(--ribbon-red)", marginRight: 4 }}>
-                            ▸
-                          </span>
-                        )}
-                        <span className="task-text">
-                          {task.title}
-                          <span className="strike-line" />
-                        </span>
-                      </button>
-                    )}
-                    {task.accumulatedMinutes > 0 && (
-                      <span className="time-pill">{task.accumulatedMinutes}m</span>
-                    )}
-                    <button
-                      type="button"
-                      aria-label="Delete task"
-                      data-testid={`delete-${task.localId}`}
-                      onClick={() => onDeleteTask(task.localId)}
-                      className="task-delete"
-                      title="Delete task"
-                    >
-                      ×
-                    </button>
-                  </li>
-                ))}
-                {vanishingTasks.map((task) => (
-                  <li
-                    key={`vanish-${task.localId}`}
-                    className="task-row is-checked is-logging"
-                    aria-hidden="true"
+                    {task.isChecked ? "✓" : ""}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onActivateTask(task.localId)}
+                    className="task-text-wrapper font-typewriter"
                   >
-                    <span className="retro-checkbox">✓</span>
-                    <span className="task-text-wrapper font-typewriter">
-                      <span className="task-text">
-                        {task.title}
-                        <span className="strike-line" />
+                    {activeTaskId === task.localId && (
+                      <span className="font-bold" style={{ color: "var(--ribbon-red)", marginRight: 4 }}>
+                        ▸
                       </span>
-                    </span>
-                    {task.accumulatedMinutes > 0 && (
-                      <span className="time-pill">{task.accumulatedMinutes}m</span>
                     )}
-                  </li>
-                ))}
-              </>
+                    <span className="task-text">
+                      {task.title}
+                      <span className="strike-line" />
+                    </span>
+                  </button>
+                  {task.accumulatedMinutes > 0 && (
+                    <span className="time-pill">{task.accumulatedMinutes}m</span>
+                  )}
+                </li>
+              ))
             )}
           </ul>
         )}
