@@ -86,17 +86,25 @@ fn merge_query_pages(pages: Vec<Value>) -> Value {
             request_id = page.get("request_id").cloned().unwrap_or(Value::Null);
         }
 
-        let is_duplicate = page
-            .get("id")
-            .and_then(Value::as_str)
-            .map(|page_id| !seen_page_ids.insert(page_id.to_string()))
-            .unwrap_or(false);
-
-        if is_duplicate {
-            continue;
+        let page_results = page.get("results").and_then(Value::as_array);
+        if let Some(page_results) = page_results {
+            if !page_results.is_empty() {
+                for page_object in page_results {
+                    let page_id = page_object
+                        .get("id")
+                        .and_then(Value::as_str)
+                        .map(String::from);
+                    let is_duplicate = match &page_id {
+                        Some(page_id) => !seen_page_ids.insert(page_id.clone()),
+                        None => false,
+                    };
+                    if is_duplicate {
+                        continue;
+                    }
+                    results.push(page_object.clone());
+                }
+            }
         }
-
-        results.push(page);
     }
 
     serde_json::json!({
@@ -318,6 +326,55 @@ mod tests {
         assert_eq!(results.len(), 2);
         assert_eq!(results[0]["id"].as_str().unwrap(), "page-1");
         assert_eq!(results[1]["id"].as_str().unwrap(), "page-2");
+        assert_eq!(merged["has_more"].as_bool().unwrap(), false);
+        assert!(merged["next_cursor"].is_null());
+    }
+
+    #[test]
+    fn merge_query_pages_preserves_first_request_id_and_closed_metadata() {
+        let first_page = serde_json::json!({
+            "results": [
+                { "id": "page-1", "properties": { "Task": { "title": [{ "plain_text": "Buy milk" }] } } }
+            ],
+            "has_more": true,
+            "next_cursor": "cursor-abc",
+            "request_id": "request-1",
+        });
+        let second_page = serde_json::json!({
+            "results": [
+                { "id": "page-2", "properties": { "Task": { "title": [{ "plain_text": "Walk dog" }] } } }
+            ],
+            "has_more": true,
+            "next_cursor": "cursor-def",
+            "request_id": "request-2",
+        });
+
+        let merged = merge_query_pages(vec![first_page, second_page]);
+
+        assert_eq!(merged["request_id"].as_str().unwrap(), "request-1");
+        assert_eq!(merged["has_more"].as_bool().unwrap(), false);
+        assert!(merged["next_cursor"].is_null());
+    }
+
+    #[test]
+    fn merge_query_pages_handles_missing_or_empty_results_arrays() {
+        let empty_results_page = serde_json::json!({
+            "results": [],
+            "has_more": false,
+            "next_cursor": null,
+            "request_id": "request-3",
+        });
+        let missing_results_page = serde_json::json!({
+            "has_more": false,
+            "next_cursor": null,
+            "request_id": "request-4",
+        });
+
+        let merged = merge_query_pages(vec![empty_results_page, missing_results_page]);
+
+        let results = merged["results"].as_array().unwrap();
+        assert_eq!(results.len(), 0);
+        assert_eq!(merged["request_id"].as_str().unwrap(), "request-3");
         assert_eq!(merged["has_more"].as_bool().unwrap(), false);
         assert!(merged["next_cursor"].is_null());
     }
